@@ -14,7 +14,9 @@
     "smoke": "VERA_LIVE=1 node tests/smoke-live.mjs",
     "sandbox": "node sandbox/serve.mjs",
     "connect": "node bin/connect.mjs",
-    "sandbox:build": "node sandbox/build-publish.mjs"
+    "sandbox:build": "node sandbox/build-publish.mjs sandbox",
+    "studio": "node sandbox/serve.mjs",
+    "studio:build": "node sandbox/build-publish.mjs studio"
   },
   "devDependencies": {
     "playwright": "^1.47.0"

@@ -145,3 +145,4 @@ vite.config.ts.timestamp-*
 # macOS
 .DS_Store
 dist-sandbox/
+dist-studio/

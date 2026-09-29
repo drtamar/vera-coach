@@ -202,6 +202,35 @@ Research accepts an optional `allowedDomains` list. It is unset by default, whic
 right call for discovery and the wrong one for a shipped product — curate it before this
 faces users.
 
+## Studio
+
+```bash
+npm run studio             # http://127.0.0.1:4173/studio/
+npm run studio:build       # flatten for publishing
+```
+
+The product UI, four sections:
+
+- **Write** — a chat with VERA that develops a script with you. It front-loads the point,
+  cuts background, and bans hedges from what you'll say. Ask for the script and it hands one
+  back between markers, which the page extracts and saves.
+- **Practice** — a teleprompter runs your script at the pace you set. Pace is measured from
+  the clock and your word count; with a microphone you also get pitch range, terminal contour
+  and filler density from the same `app/sensing/audio.mjs` the engine ships. Then the real
+  `score()` and VERA's post-take feedback: one genuine positive, the telemetry in plain
+  language, exactly one thing to change.
+- **Drills** — the 21-drill curriculum.
+- **Bench** — scoring sliders, the bandit simulation, and the live generation prompt.
+
+Published it needs the `sample` capability for the chat and the coaching. **Everything else
+works without it** — script writing by hand, the prompter, pace telemetry, drills and the
+bench all run with no model access at all, and the page says so rather than offering dead
+buttons. The microphone is likewise a bonus: when the frame does not grant it, the take still
+measures pace and says which dimensions it could not read.
+
+The script lives in browser storage only — per viewer, not synced, not visible to anyone
+else. There is a Copy button because that is a real limitation, not a detail.
+
 ## Sandbox
 
 ```bash

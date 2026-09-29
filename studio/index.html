@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VERA Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Karla:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#F3F4F6; --panel:#FFF; --sunk:#E9EBEF; --line:#D9DDE4; --soft:#EAEDF1;
+  --ink:#151921; --ink2:#5A6371; --ink3:#8B93A1;
+  --rec:#D8372A; --rec-bg:#FBE8E6; --rec-ink:#94231A;
+  --go:#1C7350; --go-bg:#E0F1E8;
+  --hold:#96650A; --hold-bg:#FAEFDA;
+  --lens:#1F6F86; --lens-bg:#DFEFF4;
+  --disp:'Bebas Neue',Impact,sans-serif; --body:'Karla',ui-sans-serif,system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12151B; --panel:#1A1E26; --sunk:#14181F; --line:#2A303B; --soft:#222834;
+  --ink:#E3E6EB; --ink2:#959DAB; --ink3:#646D7C;
+  --rec:#F0574A; --rec-bg:#2E1A18; --rec-ink:#FF9189;
+  --go:#46BA8B; --go-bg:#142E22;
+  --hold:#E0A845; --hold-bg:#2D2515;
+  --lens:#59BDD8; --lens-bg:#102C36;
+}}
+:root[data-theme="dark"]{
+  --bg:#12151B; --panel:#1A1E26; --sunk:#14181F; --line:#2A303B; --soft:#222834;
+  --ink:#E3E6EB; --ink2:#959DAB; --ink3:#646D7C;
+  --rec:#F0574A; --rec-bg:#2E1A18; --rec-ink:#FF9189;
+  --go:#46BA8B; --go-bg:#142E22;
+  --hold:#E0A845; --hold-bg:#2D2515;
+  --lens:#59BDD8; --lens-bg:#102C36;
+}
+*,*::before,*::after{box-sizing:border-box}*{margin:0;padding:0}
+body{font-family:var(--body);background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+:focus-visible{outline:2px solid var(--rec);outline-offset:2px;border-radius:4px}
+
+.top{background:var(--panel);border-bottom:1px solid var(--line);padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ink3);flex:none}
+.dot.live{background:var(--rec);animation:blip 1.8s ease-in-out infinite}
+@keyframes blip{0%,100%{opacity:1}50%{opacity:.3}}
+.top h1{font-family:var(--disp);font-size:24px;letter-spacing:.02em;line-height:1}
+.top .tag{font-family:var(--mono);font-size:10.5px;padding:2px 7px;border-radius:4px;background:var(--lens-bg);color:var(--lens)}
+.top .tag.off{background:var(--sunk);color:var(--ink3)}
+
+nav{display:flex;gap:2px;padding:0 18px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto}
+nav button{padding:10px 15px;font-size:13.5px;font-weight:600;color:var(--ink2);border-bottom:2px solid transparent;white-space:nowrap}
+nav button:hover{color:var(--ink)}
+nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--rec)}
+
+main{max-width:900px;margin:0 auto;padding:18px}
+.view{display:none}.view.on{display:block}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+.card h2{font-family:var(--disp);font-size:22px;letter-spacing:.01em;line-height:1.1}
+.card .sub{font-size:13px;color:var(--ink2);margin:3px 0 14px;max-width:64ch}
+.card .sub code{font-family:var(--mono);font-size:11.5px;background:var(--sunk);padding:1px 4px;border-radius:3px}
+
+.chat{border:1px solid var(--line);border-radius:8px;background:var(--sunk);height:min(46vh,380px);overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:85%;padding:9px 12px;border-radius:10px;font-size:14px;white-space:pre-wrap;word-break:break-word}
+.msg.me{align-self:flex-end;background:var(--rec);color:#fff}
+.msg.vera{align-self:flex-start;background:var(--panel);border:1px solid var(--line)}
+.msg.sys{align-self:center;font-size:12px;color:var(--ink3);font-style:italic;background:none;border:none;text-align:center}
+.compose{display:flex;gap:8px;margin-top:10px}
+.compose textarea{flex:1;resize:vertical;min-height:44px;max-height:140px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:14px}
+
+.btn{padding:9px 14px;border-radius:8px;font-size:13.5px;font-weight:600;background:var(--sunk);border:1px solid var(--line);min-height:44px}
+.btn:hover{border-color:var(--ink3)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.go{background:var(--rec);color:#fff;border-color:transparent}
+.btn.quiet{background:transparent;color:var(--ink2)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+textarea.script{width:100%;min-height:150px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--sunk);
+  font-family:var(--body);font-size:15px;line-height:1.6;resize:vertical}
+
+.prompter{background:#0C0F14;color:#F2F4F7;border-radius:10px;padding:26px 22px;height:min(44vh,340px);overflow:hidden;position:relative;
+  background-image:linear-gradient(#D8372A,#D8372A);background-size:20px 2px;background-repeat:no-repeat;background-position:50% 10px}
+.prompter .roll{font-size:clamp(19px,3.3vw,26px);line-height:1.75;max-width:30ch;margin:0 auto;transition:transform .12s linear;font-weight:500}
+.prompter .cue{position:absolute;left:0;right:0;top:44%;height:2px;background:rgba(216,55,42,.35)}
+.prompter.idle .roll{opacity:.55}
+
+.stats{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.stat{background:var(--sunk);border-radius:8px;padding:9px 12px;min-width:86px}
+.stat .k{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);font-weight:700}
+.stat .n{font-family:var(--mono);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:1px}
+.stat.hero .n{font-size:28px;color:var(--rec)}
+.stat .n.out{color:var(--hold)}
+
+.note{font-size:12.5px;padding:9px 11px;border-radius:7px;margin-top:10px}
+.note.warn{background:var(--hold-bg);color:var(--hold)}
+.note.ok{background:var(--go-bg);color:var(--go)}
+.note.bad{background:var(--rec-bg);color:var(--rec-ink)}
+
+.drill{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:8px}
+.drill h3{font-size:14px;font-weight:700}
+.drill .m{font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin:3px 0 6px}
+.drill p{font-size:13px;color:var(--ink2);max-width:70ch}
+.pill{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;margin-left:5px}
+.pill.doc{background:var(--go-bg);color:var(--go)} .pill.orig{background:var(--lens-bg);color:var(--lens)}
+
+.row{display:grid;grid-template-columns:190px 1fr 70px;gap:10px;align-items:center;padding:4px 0}
+.row label{font-family:var(--mono);font-size:12px}
+.row input[type=range]{width:100%;accent-color:var(--rec)}
+.row .v{font-family:var(--mono);font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
+pre{font-family:var(--mono);font-size:11.5px;background:var(--sunk);border-radius:7px;padding:11px;overflow-x:auto;white-space:pre-wrap;max-height:300px}
+@media (max-width:600px){ .row{grid-template-columns:1fr 60px} .row input[type=range]{grid-column:1/-1} main{padding:14px} }
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="top">
+  <span class="dot" id="recDot"></span>
+  <h1>VERA Studio</h1>
+  <span class="tag off" id="capTag">checking Claude…</span>
+  <span class="tag off" id="micTag">mic unknown</span>
+</div>
+<nav role="tablist">
+  <button role="tab" data-v="write" aria-selected="true">Write</button>
+  <button role="tab" data-v="practice" aria-selected="false">Practice</button>
+  <button role="tab" data-v="drills" aria-selected="false">Drills</button>
+  <button role="tab" data-v="bench" aria-selected="false">Bench</button>
+</nav>
+<main>
+  <section class="view on" id="v-write"></section>
+  <section class="view" id="v-practice"></section>
+  <section class="view" id="v-drills"></section>
+  <section class="view" id="v-bench"></section>
+</main>
+
+<script type="module">
+import { score, TARGETS, components } from '../app/scoring/score.mjs';
+import { EfficacyModel, weakestMetric } from '../app/learning/efficacy.mjs';
+import { wordsPerMinute, fillerDensity, hedgeDensity, yinPitch, pitchSemitoneSD,
+         terminalPitchSlope, rms, silenceProfile } from '../app/sensing/audio.mjs';
+import { buildPrompt } from '../server/generate.mjs';
+
+const registry = await (await fetch('../registry/drills.json')).json();
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const frag = h => { const t = document.createElement('template'); t.innerHTML = h.trim(); return t.content; };
+
+/* ---------- per-viewer storage: a working draft, nothing shared ---------- */
+const KEY = 'vera.studio.v1';
+const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+const save = s => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {} };
+let state = Object.assign({ script:'', turns:[], takes:[] }, load());
+
+/* ---------- VERA's standing instructions (a leading user turn — there is no system role) ---------- */
+const VERA_RULES = `You are VERA, an on-camera performance coach helping someone write a short script they will read to camera.
+
+How you coach:
+- The lens is a confidant, not an audience. Write for one person, not a crowd.
+- Presence over perfection. Never suggest they apologise or hedge.
+- Feedback is a concrete change, never "be more confident".
+- Front-load the point. The Headline Principle: the conclusion belongs in the first sentence, not the last.
+- Boil it down. Cut background, keep the claim and one concrete detail.
+- Write for the mouth, not the page: short sentences, plain words, no clause stacking. It has to be sayable in one breath.
+- Ban hedges in their script: "kind of", "I guess", "maybe", "I'm no expert but", "does that make sense".
+
+How you behave here:
+- Ask at most one question at a time. Never interrogate.
+- Keep replies under 120 words unless they ask for the script itself.
+- When they ask for the script, or when you have enough, output ONLY the script text between the markers <<<SCRIPT and SCRIPT>>> with no commentary inside them. You may add one short line after the closing marker.
+- Aim for 45-90 seconds spoken, which is roughly 110-220 words.`;
+
+/* ---------- capability, resolved late and possibly absent ---------- */
+let sample = null, sampleDead = false;
+/* Detection runs at the END of this module, not here. When window.claude is
+   absent entirely, `claude.use` throws a ReferenceError BEFORE the await ever
+   suspends, so the catch and everything after it run synchronously — before any
+   of the DOM below exists. Resolving early left the Send button enabled and
+   silent. */
+async function detectCapability() {
+  try { sample = await claude.use('sample'); } catch { sample = null; }
+  const tag = $('#capTag');
+  if (sample) { tag.textContent = 'Claude connected'; tag.classList.remove('off'); }
+  else { markChatUnavailable('Claude unavailable'); }
+}
+function markChatUnavailable(reason) {
+  sampleDead = true;
+  $('#capTag').textContent = reason || 'Claude unavailable';
+  $('#capTag').classList.add('off');
+  const s = $('#sendBtn'); if (s) { s.disabled = true; }
+  const c = $('#chat');
+  if (c && !c.querySelector('.deadnote')) {
+    c.append(frag(`<div class="msg sys deadnote">Chat needs Claude, which this view cannot reach. Everything else still works — you can write your script by hand below.</div>`));
+  }
+}
+const ERR_COPY = {
+  not_granted:'You declined Claude for this page, so chat is off. The rest still works.',
+  sampling_disabled:'Claude is not available on this account.',
+  not_declared:'This page no longer declares Claude access.',
+  rate_limited:'Too many requests just now. Give it a minute and try again.',
+  session_expired:'Your session expired — sign in again.',
+  refused:'Claude declined that one. Try rephrasing.',
+  empty_completion:'Nothing came back. Ask for less at a time.',
+  prompt_too_large:'That conversation got too long. Start a fresh one.',
+  cancelled:'',
+};
+const HIDE_CODES = new Set(['not_granted','sampling_disabled','not_declared','capability_disabled','capability_removed']);
+
+/* ================= WRITE ================= */
+$('#v-write').append(frag(`
+<div class="card">
+  <h2>Write the script</h2>
+  <p class="sub">Talk it through with VERA. Tell it what the video is for and who it is for; it will push back, cut, and hand you something sayable. Ask for "the script" when you want the draft.</p>
+  <div class="chat" id="chat"></div>
+  <div class="compose">
+    <textarea id="box" rows="2" placeholder="What's the video about?"></textarea>
+    <button class="btn go" id="sendBtn">Send</button>
+    <button class="btn quiet" id="stopBtn" hidden>Stop</button>
+  </div>
+  <div class="bar" style="margin-top:10px">
+    <button class="btn" id="askScript">Ask for the script</button>
+    <button class="btn quiet" id="clearChat">New conversation</button>
+  </div>
+</div>
+<div class="card">
+  <h2>Your script</h2>
+  <p class="sub">Edit freely. Saved in this browser only — <strong>not</strong> synced and not visible to anyone else. Copy it out if it matters.</p>
+  <textarea class="script" id="script" placeholder="Paste or write your script here, or let VERA draft one above."></textarea>
+  <div class="bar" style="margin-top:10px">
+    <button class="btn" id="copyScript">Copy</button>
+    <span id="scriptMeta" style="font-family:var(--mono);font-size:12px;color:var(--ink3)"></span>
+  </div>
+</div>`));
+
+const chat = $('#chat'), box = $('#box');
+function bubble(role, text) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + (role === 'user' ? 'me' : 'vera');
+  d.textContent = text;
+  chat.append(d); chat.scrollTop = chat.scrollHeight;
+  return d;
+}
+state.turns.forEach(t => bubble(t.role, t.content));
+if (!state.turns.length) chat.append(frag(`<div class="msg sys">Tell VERA what the video is for.</div>`));
+
+let ctl = null;
+async function send(text) {
+  if (!sample || sampleDead || !text.trim()) return;
+  bubble('user', text);
+  state.turns.push({ role:'user', content:text }); save(state);
+  box.value = '';
+  const out = bubble('assistant', 'Thinking…');
+  $('#sendBtn').disabled = true; $('#stopBtn').hidden = false;
+  ctl = new AbortController();
+  // keep the instructions turn, drop the oldest exchanges as it grows
+  const recent = state.turns.slice(-16);
+  try {
+    const { text: reply } = await sample(
+      [{ role:'user', content: VERA_RULES }, ...recent],
+      { cache:false, signal: ctl.signal, onText: ({ text }) => { out.textContent = text; chat.scrollTop = chat.scrollHeight; } }
+    );
+    state.turns.push({ role:'assistant', content: reply }); save(state);
+    pullScript(reply);
+  } catch (e) {
+    if (e.code === 'cancelled') { out.textContent = e.text || '(stopped)'; }
+    else if (HIDE_CODES.has(e.code)) { out.remove(); markChatUnavailable(ERR_COPY[e.code]); }
+    else { out.textContent = e.text || ''; chat.append(frag(`<div class="msg sys">${esc(ERR_COPY[e.code] || 'Something went wrong. Try again.')}</div>`)); }
+  } finally {
+    $('#sendBtn').disabled = sampleDead; $('#stopBtn').hidden = true; ctl = null;
+  }
+}
+function pullScript(reply) {
+  const m = reply.match(/<<<SCRIPT([\s\S]*?)SCRIPT>>>/);
+  if (!m) return;
+  $('#script').value = m[1].trim();
+  state.script = m[1].trim(); save(state); meta();
+  chat.append(frag(`<div class="msg sys">Script saved below — open Practice when you're ready.</div>`));
+}
+$('#sendBtn').onclick = () => send(box.value);
+$('#stopBtn').onclick = () => ctl?.abort();
+box.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send(box.value); });
+$('#askScript').onclick = () => send('Write the script now. Output only the script between the markers.');
+$('#clearChat').onclick = () => { state.turns = []; save(state); chat.innerHTML = ''; chat.append(frag(`<div class="msg sys">Fresh start. What's the video for?</div>`)); };
+
+const scriptEl = $('#script');
+scriptEl.value = state.script || '';
+function meta() {
+  const w = (scriptEl.value.trim().match(/\S+/g) || []).length;
+  $('#scriptMeta').textContent = w ? `${w} words · about ${Math.round(w / 140 * 60)}s at 140 wpm` : '';
+  const p = $('#roll'); if (p) p.textContent = scriptEl.value || 'Write a script first.';
+}
+scriptEl.addEventListener('input', () => { state.script = scriptEl.value; save(state); meta(); });
+$('#copyScript').onclick = async () => {
+  try { await navigator.clipboard.writeText(scriptEl.value); $('#copyScript').textContent = 'Copied'; setTimeout(()=>$('#copyScript').textContent='Copy',1200); }
+  catch { scriptEl.select(); }
+};
+
+/* ================= PRACTICE ================= */
+$('#v-practice').append(frag(`
+<div class="card">
+  <h2>Practise it</h2>
+  <p class="sub">The prompter runs at the pace you set. Speak along with it. Pace is measured from the clock and your word count; with a microphone you also get pitch range, terminal contour and filler density from the real acoustic pipeline.</p>
+  <div class="prompter idle" id="prompter"><div class="cue"></div><div class="roll" id="roll">Write a script first.</div></div>
+  <div class="row" style="margin-top:12px">
+    <label for="speed">prompter wpm</label>
+    <input id="speed" type="range" min="90" max="200" step="5" value="140">
+    <span class="v" id="speedV">140</span>
+  </div>
+  <div class="bar" style="margin-top:6px">
+    <button class="btn go" id="startBtn">Start take</button>
+    <button class="btn" id="endBtn" disabled>Finish</button>
+    <span id="clock" style="font-family:var(--mono);font-size:15px;font-variant-numeric:tabular-nums"></span>
+  </div>
+  <div id="takeNote"></div>
+  <div class="stats" id="takeStats"></div>
+</div>
+<div class="card" id="feedbackCard" hidden>
+  <h2>What VERA saw</h2>
+  <p class="sub">One genuine positive, then the telemetry, then exactly one thing to change. Three corrections produce zero corrections.</p>
+  <div id="feedback" style="font-size:14px;white-space:pre-wrap"></div>
+</div>`));
+
+$('#speed').oninput = e => { $('#speedV').textContent = e.target.value; };
+let take = null;
+const fmt = s => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+
+async function startTake() {
+  const text = (scriptEl.value || '').trim();
+  if (!text) { $('#takeNote').innerHTML = `<div class="note warn">Write a script first.</div>`; return; }
+  $('#takeNote').innerHTML = '';
+  take = { t0: performance.now(), words: (text.match(/\S+/g)||[]).length, pitch: [], energy: [], transcript: '', mic: false };
+  $('#prompter').classList.remove('idle');
+  $('#recDot').classList.add('live');
+  $('#startBtn').disabled = true; $('#endBtn').disabled = false;
+
+  // scroll the prompter at the chosen pace
+  const wpm = Number($('#speed').value);
+  const roll = $('#roll');
+  roll.style.transform = 'translateY(0)';
+  const total = roll.scrollHeight;
+  const seconds = take.words / wpm * 60;
+  take.scroll = setInterval(() => {
+    const el = (performance.now() - take.t0) / 1000;
+    $('#clock').textContent = fmt(el);
+    roll.style.transform = `translateY(${-Math.min(1, el/seconds) * Math.max(0, total - 120)}px)`;
+  }, 100);
+
+  // mic is a bonus, never a requirement — the artifact frame may not delegate it
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:false, autoGainControl:false } });
+    take.stream = stream; take.mic = true;
+    $('#micTag').textContent = 'mic live'; $('#micTag').classList.remove('off');
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const an = ctx.createAnalyser(); an.fftSize = 2048;
+    ctx.createMediaStreamSource(stream).connect(an);
+    const buf = new Float32Array(an.fftSize);
+    take.ctx = ctx;
+    take.audio = setInterval(() => {
+      an.getFloatTimeDomainData(buf);
+      const e = rms(buf);
+      take.energy.push(e);
+      take.pitch.push(e > 0.01 ? yinPitch(buf, ctx.sampleRate) : null);
+    }, 20);
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SR) {
+      const r = new SR(); r.continuous = true; r.interimResults = false; r.lang = 'en-US';
+      r.onresult = ev => { for (let i = ev.resultIndex; i < ev.results.length; i++) take.transcript += ' ' + ev.results[i][0].transcript; };
+      r.onerror = () => {};
+      try { r.start(); take.asr = r; } catch {}
+    }
+  } catch {
+    $('#micTag').textContent = 'no mic — pace only'; $('#micTag').classList.add('off');
+    $('#takeNote').innerHTML = `<div class="note warn">No microphone in this view, so only pace is measured. Everything else still runs.</div>`;
+  }
+}
+
+function endTake() {
+  if (!take) return;
+  clearInterval(take.scroll); clearInterval(take.audio);
+  take.asr?.stop(); take.ctx?.close(); take.stream?.getTracks().forEach(t => t.stop());
+  $('#recDot').classList.remove('live');
+  $('#startBtn').disabled = false; $('#endBtn').disabled = true;
+  $('#prompter').classList.add('idle');
+
+  const secs = (performance.now() - take.t0) / 1000;
+  const spoken = take.transcript.trim();
+  // pace from the clock and the script when ASR is unavailable — still real telemetry
+  const t = {
+    wpm: spoken ? wordsPerMinute(spoken, secs) : (take.words / secs) * 60,
+    filler_density: spoken ? fillerDensity(spoken) : null,
+    pitch_semitone_sd: take.pitch.length ? pitchSemitoneSD(take.pitch) : null,
+    terminal_pitch_slope: take.pitch.length ? terminalPitchSlope(take.pitch, 20) : null,
+    silence_ratio: take.energy.length ? silenceProfile(take.energy, 20).silence_ratio : null,
+    duration_s: secs,
+  };
+  const hedges = spoken ? hedgeDensity(spoken) : null;
+  const r = score(t, { category:'exposure' });
+  const w = weakestMetric(t, TARGETS);
+
+  const cell = (k, v, unit='') => {
+    if (!Number.isFinite(v)) return `<div class="stat"><div class="k">${k}</div><div class="n" style="font-size:13px;color:var(--ink3)">—</div></div>`;
+    const tg = TARGETS[k]; const out = tg && !(v >= tg.band[0] && v <= tg.band[1]);
+    return `<div class="stat"><div class="k">${k}</div><div class="n${out?' out':''}">${v.toFixed(v<1?3:0)}${unit}</div></div>`;
+  };
+  $('#takeStats').innerHTML =
+    `<div class="stat hero"><div class="k">composite</div><div class="n">${r.score}</div></div>` +
+    `<div class="stat"><div class="k">length</div><div class="n">${fmt(secs)}</div></div>` +
+    cell('wpm', t.wpm) + cell('filler_density', t.filler_density) +
+    cell('pitch_semitone_sd', t.pitch_semitone_sd) + cell('terminal_pitch_slope', t.terminal_pitch_slope);
+
+  if (!take.mic) $('#takeNote').innerHTML = `<div class="note warn">Pace measured from the clock. Pitch and fillers need a microphone.</div>`;
+  else if (!spoken) $('#takeNote').innerHTML = `<div class="note warn">No transcript — this browser's speech recognition did not run, so filler density is unavailable. Pitch and pace are real.</div>`;
+  else $('#takeNote').innerHTML = `<div class="note ok">Take recorded. Nothing left your device — only the numbers below were computed.</div>`;
+
+  state.takes.push({ at: Date.now(), score: r.score, wpm: t.wpm }); save(state);
+  coachOn(t, r, w, hedges, spoken);
+  take = null;
+}
+$('#startBtn').onclick = startTake;
+$('#endBtn').onclick = endTake;
+
+async function coachOn(t, r, w, hedges, spoken) {
+  if (!sample || sampleDead) return;
+  const card = $('#feedbackCard'), out = $('#feedback');
+  card.hidden = false; out.textContent = 'VERA is watching that back…';
+  const lines = Object.entries(t).filter(([,v]) => Number.isFinite(v))
+    .map(([k,v]) => `- ${k}: ${typeof v === 'number' ? v.toFixed(3) : v}${TARGETS[k] ? ` (target ${TARGETS[k].band[0]}–${TARGETS[k].band[1]})` : ''}`).join('\n');
+  const prompt = `${VERA_RULES}
+
+A take just finished. Here is the measured telemetry:
+${lines}
+- composite score: ${r.score}/100
+${w ? `- weakest dimension: ${w.metric}` : ''}
+${Number.isFinite(hedges) ? `- hedge density: ${hedges.toFixed(3)} (hedging is a conviction problem, distinct from filler words)` : ''}
+${spoken ? `\nWhat they actually said:\n"""${spoken.slice(0, 1500)}"""` : '\nNo transcript was captured.'}
+
+Give post-take feedback in exactly this order, as plain prose, no headings, under 130 words:
+1. One genuine positive naming something real in the numbers or the words. Not flattery.
+2. The telemetry that matters, in plain language — what the number means for a viewer, not the number restated.
+3. Exactly one concrete physical adjustment for the next take. One. Never "be more confident".`;
+  try {
+    const { text } = await sample(prompt, { cache:false, onText: ({ text }) => { out.textContent = text; } });
+    out.textContent = text;
+  } catch (e) {
+    if (HIDE_CODES.has(e.code)) { card.hidden = true; markChatUnavailable(ERR_COPY[e.code]); }
+    else out.textContent = e.text || (ERR_COPY[e.code] || 'Could not get feedback just now.');
+  }
+}
+
+/* ================= DRILLS ================= */
+$('#v-drills').append(frag(`
+<div class="card">
+  <h2>Curriculum</h2>
+  <p class="sub">${registry.drills.length} drills across six stages, from lens desensitization to crisis bridging. Graduation needs benchmarks held across three consecutive sessions, never one good take.</p>
+  <div id="drillList"></div>
+</div>`));
+$('#drillList').innerHTML = registry.drills.map(d => `
+  <div class="drill">
+    <h3>${esc(d.name)}<span class="pill ${d.source==='documented'?'doc':'orig'}">${d.source}</span></h3>
+    <div class="m">stage ${d.stage} · ${d.duration_s}s · ×${d.reps_target} · ${d.category}</div>
+    <p>${esc(d.coach_brief.replace(/^AUTHORED\.\s*/,''))}</p>
+  </div>`).join('');
+
+/* ================= BENCH ================= */
+const SL = { gaze_fixation_ratio:[0,1,.01,.72], wpm:[60,240,1,140], pitch_semitone_sd:[0,10,.1,3.1],
+             terminal_pitch_slope:[-5,5,.1,-.8], filler_density:[0,.12,.001,.008], truth_plane_occupancy:[0,1,.01,.35] };
+$('#v-bench').append(frag(`
+<div class="card">
+  <h2>Scoring bench</h2>
+  <p class="sub">Drag a dimension out of its band and watch the composite move. Same <code>score()</code> the practice view uses.</p>
+  ${Object.entries(SL).map(([k,[a,b,s,d]])=>`<div class="row"><label for="b-${k}">${k}</label><input id="b-${k}" type="range" min="${a}" max="${b}" step="${s}" value="${d}"><span class="v" id="bv-${k}">${d}</span></div>`).join('')}
+  <div class="stats" id="benchOut"></div>
+</div>
+<div class="card">
+  <h2>Does the bandit find what works?</h2>
+  <p class="sub">Three candidates, one with a real effect. Nothing tells it which.</p>
+  <button class="btn go" id="simBtn">Run 300 sessions</button>
+  <div id="simOut" style="margin-top:12px"></div>
+</div>
+<div class="card">
+  <h2>The generation prompt</h2>
+  <p class="sub">What the model is actually asked when a metric stalls — including the measured effect of every drill already tried.</p>
+  <pre id="genPrompt"></pre>
+</div>`));
+function bench() {
+  const t = {}; for (const k of Object.keys(SL)) { t[k] = Number($('#b-'+k).value); $('#bv-'+k).textContent = t[k]; }
+  const r = score(t, { category:'exposure' });
+  $('#benchOut').innerHTML = `<div class="stat hero"><div class="k">composite</div><div class="n">${r.score}</div></div>` +
+    Object.entries(r.components).map(([k,v])=>`<div class="stat"><div class="k">${k}</div><div class="n">${v.toFixed(2)}</div></div>`).join('');
+}
+$('#v-bench').addEventListener('input', bench); bench();
+function mul(a){return function(){a|=0;a=a+0x6D2B79F5|0;let x=Math.imul(a^a>>>15,1|a);x=x+Math.imul(x^x>>>7,61|x)^x;return((x^x>>>14)>>>0)/4294967296}}
+$('#simBtn').onclick = () => {
+  const rng = mul(7), m = new EfficacyModel();
+  const ds = [{id:'works',source:'generated',target_metrics:['wpm']},{id:'inert1',source:'generated',target_metrics:['wpm']},{id:'inert2',source:'generated',target_metrics:['wpm']}];
+  const TRUTH = {works:.8,inert1:0,inert2:0}; const picks=[];
+  for (let i=0;i<300;i++){ const c=m.select(ds,'wpm',rng); picks.push(c.id); m.record(c.id,'wpm',190,190-(TRUTH[c.id]+(rng()-.5))*20); }
+  const tail = picks.slice(-100);
+  $('#simOut').innerHTML = ds.map(d=>{const e=m.effect(d.id,'wpm');const sh=tail.filter(p=>p===d.id).length;
+    return `<div class="stat" style="display:inline-block;margin:0 8px 8px 0"><div class="k">${d.id} · true ${TRUTH[d.id].toFixed(1)}</div><div class="n">${e.mean.toFixed(2)} <span style="font-size:12px;color:var(--ink3)">${sh}%</span></div></div>`;}).join('');
+};
+{
+  const eff = new EfficacyModel();
+  const rel = registry.drills.filter(d => (d.target_metrics||[]).includes('wpm'));
+  rel.forEach((d,i)=>{ for(let k=0;k<6;k++) eff.record(d.id,'wpm',190,190+(i===0?2:i===1?0:-1)); });
+  $('#genPrompt').textContent = buildPrompt({ metric:'wpm', registryMetrics: registry.metrics,
+    tried: rel.map(d=>({name:d.name, mechanism:d.coach_brief.replace(/^AUTHORED\.\s*/,'').slice(0,140),
+                        effect:eff.effect(d.id,'wpm').mean, n:eff.effect(d.id,'wpm').n})), telemetry:{ wpm:188 } });
+}
+
+/* ---------- nav ---------- */
+document.querySelector('nav').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.querySelectorAll('nav button').forEach(x => x.setAttribute('aria-selected', String(x===b)));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + b.dataset.v));
+  if (b.dataset.v === 'practice') meta();
+});
+meta();
+
+/* everything above exists now — safe to ask what this view can do */
+detectCapability();
+</script>
+</body>
+</html>
