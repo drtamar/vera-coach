@@ -55,6 +55,25 @@ const MEDIA  = /\b(MediaStream|MediaRecorder|captureStream|toDataURL|toBlob|getI
   }
 }
 
+/* ---------- 2b. the server half must not reach into the sensing half ----------
+   server/ now genuinely calls the network (drill generation). The isolation
+   check above passes trivially for it, because the SDK hides the transport.
+   So assert the structural boundary directly: nothing under server/ may import
+   the sensing pipeline, which is the only place raw media exists. */
+{
+  for (const f of walk(join(ROOT, 'server'))) {
+    const src = readFileSync(f, 'utf8');
+    const name = relative(ROOT, f);
+    const importsSensing = /from\s+['"][^'"]*sensing\//.test(src);
+    t(`boundary: ${name} does not import the sensing pipeline`, !importsSensing);
+  }
+  const gen = readFileSync(join(ROOT, 'server', 'generate.mjs'), 'utf8');
+  t('boundary: generate.mjs never references a MediaStream or frame buffer',
+    !/MediaStream|videoEl|getUserMedia|Float32Array|ImageData/.test(gen));
+  t('boundary: llm.mjs never references media either',
+    !/MediaStream|videoEl|getUserMedia|Float32Array|ImageData/.test(readFileSync(join(ROOT,'server','llm.mjs'),'utf8')));
+}
+
 /* ---------- 3. the telemetry vector carries numbers only ---------- */
 {
   const src = readFileSync(join(ROOT, 'app', 'sensing', 'pipeline.mjs'), 'utf8');

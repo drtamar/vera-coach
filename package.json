@@ -9,11 +9,24 @@
     "test:core": "node tests/core.test.mjs",
     "test:sensing": "node tests/sensing.test.mjs",
     "test:privacy": "node tests/privacy.test.mjs",
-    "test:onramp": "node tests/onramp.test.mjs"
+    "test:onramp": "node tests/onramp.test.mjs",
+    "test:generate": "node tests/generate.test.mjs"
   },
   "devDependencies": {
     "playwright": "^1.47.0"
   },
-  "engines": { "node": ">=20" },
-  "keywords": ["on-camera", "coaching", "mediapipe", "telemetry", "public-speaking", "presence"]
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "on-camera",
+    "coaching",
+    "mediapipe",
+    "telemetry",
+    "public-speaking",
+    "presence"
+  ],
+  "optionalDependencies": {
+    "@anthropic-ai/sdk": "^0.70.0"
+  }
 }

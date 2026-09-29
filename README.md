@@ -65,7 +65,11 @@ The curriculum is a starting point, not a ceiling.
    within-session pre/post measurements. Selection is Thompson sampling weighted toward your
    weakest dimension.
 2. **Generate when stuck.** If a metric stalls and no drill shows trusted positive effect,
-   VERA authors a new one to the schema.
+   VERA authors a new one via the Claude API under a strict JSON schema. The prompt carries
+   the speaker's *measured* effect for every drill already tried on that metric — including
+   the ones that made it worse — and forbids proposing a variation of any of them. The
+   candidate must name the stalled metric in both its targets and its graduation predicate,
+   or it is rejected and re-requested once with the specific failure quoted back.
 3. **Research beyond the manual.** Search out external technique, map it to the schema,
    record provenance.
 
@@ -102,10 +106,23 @@ app/sensing/           vision.mjs + audio.mjs (pure, testable) · pipeline.mjs (
 app/scoring/           composite score, graduation predicates, three-session gating
 app/learning/          effect estimation, Thompson selection, pruning
 server/tools.mjs       VERA's 8 tools + the schema gate on generated drills
+server/llm.mjs         Anthropic client, structured output, error classification, retry
+server/generate.mjs    tier-2 drill authoring: prompt, call, gate, one repair round-trip
 SKILL.md               VERA's coaching brain — usable directly as a Claude skill
 onramp/index.html      the Stage 0–1 beginner UI: self-contained, offline, no build
 docs/PROVENANCE.md     every departure from the source documents, and why
 ```
+
+## Enabling generation
+
+```bash
+npm i @anthropic-ai/sdk        # optional dependency
+export ANTHROPIC_API_KEY=...   # or run `ant auth login`
+```
+
+Without it, everything else works and generation returns a clear `LLMUnavailable` telling
+you what to install. Requests use `claude-opus-5-5` with adaptive thinking and structured
+outputs — not forced tool use, which returns a 400 on this model family.
 
 ## Tests
 
@@ -114,21 +131,27 @@ npm test            # all suites; the browser suite skips if playwright is absen
 npm i && npm test   # includes the on-ramp browser suite
 ```
 
-205 tests: scoring and learning (77), sensing against synthesized ground truth (65), the
-privacy invariant (21), tool schemas (21), on-ramp UI in a real browser (21).
+270 tests: scoring and learning (77), sensing against synthesized ground truth (65), the
+privacy invariant (28), tool schemas (21), drill generation (58), on-ramp UI in a real
+browser (21).
+
+Generation is tested entirely against an injected fake client, so `npm test` needs neither
+the Anthropic SDK nor an API key.
 
 ## Status
 
-Working and tested: the drill registry, sensing arithmetic, scoring, tier-1 learning, tool
-schemas, and the beginner on-ramp UI.
+Working and tested: the drill registry, sensing arithmetic, scoring, tier-1 and tier-2
+learning, tool schemas, and the beginner on-ramp UI.
 
 Not yet done:
 
 - **`app/sensing/pipeline.mjs` has never run against a real camera.** The metric arithmetic
   is thoroughly tested; the MediaPipe wiring is not.
-- **Learning tiers 2 and 3 are plumbing without the calls.** The stall trigger, schema gate
-  and pruning logic exist; no LLM or search call is wired, so nothing can yet produce
-  candidates for them to evaluate.
+- **Learning tier 3 (research) is plumbing without the calls.** The trigger, schema gate and
+  pruning logic are shared with tier 2, but no search call is wired.
+- **Generation has never run against the live API.** Every failure mode is tested against an
+  injected fake — refusals, truncation, non-JSON output, the repair round-trip, the retry
+  policy — but no real request has been made.
 - **There is no UI for stages 1–5.** The on-ramp is the only interface.
 
 ## Honesty

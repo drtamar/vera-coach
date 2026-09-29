@@ -123,8 +123,13 @@ the speaker's weakest dimension. Estimates are shrunk toward a no-effect prior a
 until they clear a minimum trial count — two good sessions are not a finding.
 
 **Generate when stuck.** If a metric stalls and no drill in the registry shows trusted
-positive effect on it, author a new one to the schema. It enters with high uncertainty and
-is evaluated exactly like the documented drills.
+positive effect on it, author a new one to the schema. The authoring prompt carries the
+measured effect of every drill already tried on that metric — including negative ones — and
+forbids proposing a variation of them, so generation attacks the dimension by a different
+mechanism rather than restating a failure. A candidate must name the stalled metric in both
+its `target_metrics` and its graduation predicate; if it does not, it is rejected and
+re-requested once with the specific failure quoted back, then abandoned. It enters with high
+uncertainty and is evaluated exactly like the documented drills.
 
 **Research beyond the manual.** Search out external technique, map it to the schema, record
 the source.
