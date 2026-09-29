@@ -211,7 +211,7 @@ $('#v-write').append(frag(`
   <p class="sub">Talk it through with VERA. Tell it what the video is for and who it is for; it will push back, cut, and hand you something sayable. Ask for "the script" when you want the draft.</p>
   <div class="chat" id="chat"></div>
   <div class="compose">
-    <textarea id="box" rows="2" placeholder="What's the video about?"></textarea>
+    <textarea id="box" rows="2" placeholder="What's the video about?  (Enter to send, Shift+Enter for a new line)"></textarea>
     <button class="btn go" id="sendBtn">Send</button>
     <button class="btn quiet" id="stopBtn" hidden>Stop</button>
   </div>
@@ -226,6 +226,7 @@ $('#v-write').append(frag(`
   <textarea class="script" id="script" placeholder="Paste or write your script here, or let VERA draft one above."></textarea>
   <div class="bar" style="margin-top:10px">
     <button class="btn" id="copyScript">Copy</button>
+    <button class="btn quiet" id="clearScript">Clear</button>
     <span id="scriptMeta" style="font-family:var(--mono);font-size:12px;color:var(--ink3)"></span>
   </div>
 </div>`));
@@ -238,6 +239,13 @@ function bubble(role, text) {
   chat.append(d); chat.scrollTop = chat.scrollHeight;
   return d;
 }
+// Only the last 16 turns are ever sent, so keeping hundreds in storage just
+// bloats it and re-renders a transcript nobody scrolls back through.
+const KEEP_TURNS = 40;
+function trimTurns() { if (state.turns.length > KEEP_TURNS) state.turns = state.turns.slice(-KEEP_TURNS); }
+
+// trim on load too — and write it back, or storage keeps growing regardless
+if (state.turns.length > KEEP_TURNS) { trimTurns(); save(state); }
 state.turns.forEach(t => bubble(t.role, t.content));
 if (!state.turns.length) chat.append(frag(`<div class="msg sys">Tell VERA what the video is for.</div>`));
 
@@ -245,7 +253,7 @@ let ctl = null;
 async function send(text) {
   if (!sample || sampleDead || !text.trim()) return;
   bubble('user', text);
-  state.turns.push({ role:'user', content:text }); save(state);
+  state.turns.push({ role:'user', content:text }); trimTurns(); save(state);
   box.value = '';
   const out = bubble('assistant', 'Thinking…');
   $('#sendBtn').disabled = true; $('#stopBtn').hidden = false;
@@ -257,7 +265,7 @@ async function send(text) {
       [{ role:'user', content: VERA_RULES }, ...recent],
       { cache:false, signal: ctl.signal, onText: ({ text }) => { out.textContent = text; chat.scrollTop = chat.scrollHeight; } }
     );
-    state.turns.push({ role:'assistant', content: reply }); save(state);
+    state.turns.push({ role:'assistant', content: reply }); trimTurns(); save(state);
     pullScript(reply);
   } catch (e) {
     if (e.code === 'cancelled') { out.textContent = e.text || '(stopped)'; }
@@ -276,7 +284,9 @@ function pullScript(reply) {
 }
 $('#sendBtn').onclick = () => send(box.value);
 $('#stopBtn').onclick = () => ctl?.abort();
-box.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send(box.value); });
+box.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(box.value); }
+});
 $('#askScript').onclick = () => send('Write the script now. Output only the script between the markers.');
 $('#clearChat').onclick = () => { state.turns = []; save(state); chat.innerHTML = ''; chat.append(frag(`<div class="msg sys">Fresh start. What's the video for?</div>`)); };
 
@@ -288,6 +298,10 @@ function meta() {
   const p = $('#roll'); if (p) p.textContent = scriptEl.value || 'Write a script first.';
 }
 scriptEl.addEventListener('input', () => { state.script = scriptEl.value; save(state); meta(); });
+$('#clearScript').onclick = () => {
+  if (!scriptEl.value || !confirm('Clear the script? This cannot be undone.')) return;
+  scriptEl.value = ''; state.script = ''; save(state); meta();
+};
 $('#copyScript').onclick = async () => {
   try { await navigator.clipboard.writeText(scriptEl.value); $('#copyScript').textContent = 'Copied'; setTimeout(()=>$('#copyScript').textContent='Copy',1200); }
   catch { scriptEl.select(); }
@@ -311,6 +325,12 @@ $('#v-practice').append(frag(`
   </div>
   <div id="takeNote"></div>
   <div class="stats" id="takeStats"></div>
+</div>
+<div class="card" id="historyCard" hidden>
+  <h2>Your takes</h2>
+  <p class="sub">The only honest measure of progress is your first take against your latest. Newest first.</p>
+  <div id="takeHistory"></div>
+  <button class="btn quiet" id="clearTakes" style="margin-top:8px">Clear history</button>
 </div>
 <div class="card" id="feedbackCard" hidden>
   <h2>What VERA saw</h2>
@@ -337,10 +357,15 @@ async function startTake() {
   roll.style.transform = 'translateY(0)';
   const total = roll.scrollHeight;
   const seconds = take.words / wpm * 60;
+  // The last line should finish ON the cue line, not above it. Derive that from
+  // the box — the prompter is min(44vh, 340px), so a hard-coded pixel constant
+  // overshoots on a tall viewport and undershoots on a short one.
+  const cueY = $('#prompter').clientHeight * 0.44;
+  const travel = Math.max(0, total - cueY);
   take.scroll = setInterval(() => {
     const el = (performance.now() - take.t0) / 1000;
     $('#clock').textContent = fmt(el);
-    roll.style.transform = `translateY(${-Math.min(1, el/seconds) * Math.max(0, total - 120)}px)`;
+    roll.style.transform = `translateY(${-Math.min(1, el / seconds) * travel}px)`;
   }, 100);
 
   // mic is a bonus, never a requirement — the artifact frame may not delegate it
@@ -382,9 +407,13 @@ function endTake() {
 
   const secs = (performance.now() - take.t0) / 1000;
   const spoken = take.transcript.trim();
-  // pace from the clock and the script when ASR is unavailable — still real telemetry
+  // Below a few seconds, pace is arithmetic noise: a 0.2s take divides a whole
+  // script by a fifth of a second and reports six figures. Report nothing rather
+  // than a number that is confidently wrong.
+  const MIN_TAKE_S = 4;
+  const tooShort = secs < MIN_TAKE_S;
   const t = {
-    wpm: spoken ? wordsPerMinute(spoken, secs) : (take.words / secs) * 60,
+    wpm: tooShort ? null : (spoken ? wordsPerMinute(spoken, secs) : (take.words / secs) * 60),
     filler_density: spoken ? fillerDensity(spoken) : null,
     pitch_semitone_sd: take.pitch.length ? pitchSemitoneSD(take.pitch) : null,
     terminal_pitch_slope: take.pitch.length ? terminalPitchSlope(take.pitch, 20) : null,
@@ -406,16 +435,34 @@ function endTake() {
     cell('wpm', t.wpm) + cell('filler_density', t.filler_density) +
     cell('pitch_semitone_sd', t.pitch_semitone_sd) + cell('terminal_pitch_slope', t.terminal_pitch_slope);
 
-  if (!take.mic) $('#takeNote').innerHTML = `<div class="note warn">Pace measured from the clock. Pitch and fillers need a microphone.</div>`;
+  if (tooShort) $('#takeNote').innerHTML = `<div class="note warn">That take was ${secs.toFixed(1)}s — too short to measure pace from. Give it at least ${MIN_TAKE_S} seconds.</div>`;
+  else if (!take.mic) $('#takeNote').innerHTML = `<div class="note warn">Pace measured from the clock. Pitch and fillers need a microphone.</div>`;
   else if (!spoken) $('#takeNote').innerHTML = `<div class="note warn">No transcript — this browser's speech recognition did not run, so filler density is unavailable. Pitch and pace are real.</div>`;
   else $('#takeNote').innerHTML = `<div class="note ok">Take recorded. Nothing left your device — only the numbers below were computed.</div>`;
 
-  state.takes.push({ at: Date.now(), score: r.score, wpm: t.wpm }); save(state);
+  if (!tooShort) { state.takes.push({ at: Date.now(), score: r.score, wpm: t.wpm }); save(state); renderTakes(); }
   coachOn(t, r, w, hedges, spoken);
   take = null;
 }
 $('#startBtn').onclick = startTake;
 $('#endBtn').onclick = endTake;
+
+function renderTakes() {
+  const list = state.takes.slice().reverse();
+  $('#historyCard').hidden = list.length === 0;
+  if (!list.length) return;
+  const best = Math.max(...state.takes.map(x => x.score));
+  const first = state.takes[0];
+  $('#takeHistory').innerHTML =
+    (state.takes.length > 1
+      ? `<div class="note ${list[0].score >= first.score ? 'ok' : 'warn'}">First take ${first.score} · latest ${list[0].score} · best ${best}</div>`
+      : '') +
+    '<div class="stats" style="margin-top:10px">' + list.slice(0, 12).map(x => `
+      <div class="stat"><div class="k">${new Date(x.at).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</div>
+      <div class="n">${x.score}<span style="font-size:11px;color:var(--ink3)"> ${Number.isFinite(x.wpm)?Math.round(x.wpm)+'w':''}</span></div></div>`).join('') + '</div>';
+}
+$('#clearTakes').onclick = () => { state.takes = []; save(state); renderTakes(); };
+renderTakes();
 
 async function coachOn(t, r, w, hedges, spoken) {
   if (!sample || sampleDead) return;
