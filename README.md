@@ -225,6 +225,17 @@ nothing spent. Five panels:
 The page imports the engine's real modules over HTTP rather than a bundled copy, so what you
 exercise here cannot drift from what ships.
 
+To publish it as a standalone page:
+
+```bash
+npm run sandbox:build      # → dist-sandbox/, index.html plus 8 runtime files
+```
+
+Served locally the page lives at `/sandbox/` and imports `../app/…`; published it sits at the
+root, so those become `./app/…`. Only the page is rewritten — the engine modules are copied
+verbatim, because rewriting them would reintroduce exactly the drift the sandbox exists to
+avoid. The build refuses to write if a `../` survives, which would 404 after publishing.
+
 ## Tests
 
 ```bash

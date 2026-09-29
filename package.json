@@ -13,7 +13,8 @@
     "test:generate": "node tests/generate.test.mjs",
     "smoke": "VERA_LIVE=1 node tests/smoke-live.mjs",
     "sandbox": "node sandbox/serve.mjs",
-    "connect": "node bin/connect.mjs"
+    "connect": "node bin/connect.mjs",
+    "sandbox:build": "node sandbox/build-publish.mjs"
   },
   "devDependencies": {
     "playwright": "^1.47.0"
