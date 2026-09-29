@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VERA Bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#EFF1F4; --panel:#FFFFFF; --sunk:#E4E7EC; --line:#D3D8E0; --line-soft:#E6E9EF;
+  --ink:#141922; --ink-2:#555F70; --ink-3:#8A93A3;
+  --cyan:#0E7C8C; --cyan-bg:#DDF0F2;
+  --amber:#9A6206; --amber-bg:#FBEFD9;
+  --red:#B4281C; --red-bg:#FBE6E3;
+  --green:#1C6B4A; --green-bg:#DFF0E7;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --sans:'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1319; --panel:#161B23; --sunk:#10141A; --line:#262D38; --line-soft:#1E242D;
+    --ink:#DDE3EC; --ink-2:#8E99AA; --ink-3:#5C6675;
+    --cyan:#4CC9DC; --cyan-bg:#10303A;
+    --amber:#E5A93F; --amber-bg:#33270F;
+    --red:#F0655A; --red-bg:#381916;
+    --green:#4FC08A; --green-bg:#11301F;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1319; --panel:#161B23; --sunk:#10141A; --line:#262D38; --line-soft:#1E242D;
+  --ink:#DDE3EC; --ink-2:#8E99AA; --ink-3:#5C6675;
+  --cyan:#4CC9DC; --cyan-bg:#10303A;
+  --amber:#E5A93F; --amber-bg:#33270F;
+  --red:#F0655A; --red-bg:#381916;
+  --green:#4FC08A; --green-bg:#11301F;
+}
+*,*::before,*::after{box-sizing:border-box}*{margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer;border:none;background:none}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
+.top{border-bottom:1px solid var(--line);background:var(--panel);padding:14px 20px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.top h1{font-size:15px;font-weight:700;letter-spacing:-.01em}
+.top .sub{font-size:12.5px;color:var(--ink-2)}
+.badge{font-family:var(--mono);font-size:10.5px;font-weight:500;padding:2px 7px;border-radius:4px;background:var(--cyan-bg);color:var(--cyan);letter-spacing:.02em}
+
+.tabs{display:flex;gap:2px;padding:0 20px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{padding:9px 14px;font-size:13px;font-weight:500;color:var(--ink-2);border-bottom:2px solid transparent;white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--cyan)}
+
+main{max-width:1040px;margin:0 auto;padding:20px}
+.panel{display:none}.panel.on{display:block}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:14px}
+.card h2{font-size:13px;font-weight:600;margin-bottom:4px}
+.card .hint{font-size:12.5px;color:var(--ink-2);margin-bottom:14px;max-width:70ch}
+.card .hint code{font-family:var(--mono);font-size:11.5px;background:var(--sunk);padding:1px 4px;border-radius:3px}
+
+.row{display:grid;grid-template-columns:200px 1fr 84px;gap:12px;align-items:center;padding:5px 0}
+.row label{font-size:12.5px;font-family:var(--mono)}
+.row input[type=range]{width:100%;accent-color:var(--cyan)}
+.row .v{font-family:var(--mono);font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums}
+.row .v.out{color:var(--amber)}
+
+.readout{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--line-soft)}
+.stat{background:var(--sunk);border-radius:6px;padding:9px 12px;min-width:92px}
+.stat .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);font-weight:600}
+.stat .n{font-family:var(--mono);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:2px}
+.stat.big .n{font-size:26px;color:var(--cyan)}
+
+.btn{font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:6px;background:var(--sunk);border:1px solid var(--line)}
+.btn:hover{border-color:var(--ink-3)}
+.btn.go{background:var(--cyan);color:#fff;border-color:transparent}
+.btn.bad{background:var(--red-bg);color:var(--red);border-color:transparent}
+.bar{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+
+pre{font-family:var(--mono);font-size:11.5px;line-height:1.55;background:var(--sunk);border:1px solid var(--line-soft);
+    border-radius:6px;padding:12px;overflow-x:auto;white-space:pre-wrap;word-break:break-word;max-height:380px}
+.tag{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 6px;border-radius:4px;margin-right:6px}
+.tag.pass{background:var(--green-bg);color:var(--green)}
+.tag.fail{background:var(--red-bg);color:var(--red)}
+.tag.warn{background:var(--amber-bg);color:var(--amber)}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);
+   padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:7px 8px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+td.m{font-family:var(--mono);font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:none}
+.scroll{overflow-x:auto}
+
+.drill{border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:8px;background:var(--panel)}
+.drill h3{font-size:13px;font-weight:600}
+.drill .meta{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin:3px 0 7px}
+.drill p{font-size:12.5px;color:var(--ink-2);max-width:72ch}
+@media (max-width:640px){ .row{grid-template-columns:1fr 60px;} .row input[type=range]{grid-column:1/-1} }
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>VERA Bench</h1>
+  <span class="sub">The real engine, a mock model, nothing spent.</span>
+  <span class="badge" id="srcBadge">loading modules…</span>
+</div>
+<nav class="tabs" role="tablist">
+  <button class="tab" role="tab" data-p="score"    aria-selected="true">Scoring</button>
+  <button class="tab" role="tab" data-p="learn"    aria-selected="false">Learning</button>
+  <button class="tab" role="tab" data-p="generate" aria-selected="false">Generation</button>
+  <button class="tab" role="tab" data-p="research" aria-selected="false">Research</button>
+  <button class="tab" role="tab" data-p="registry" aria-selected="false">Registry</button>
+</nav>
+<main>
+  <section class="panel on" id="p-score"></section>
+  <section class="panel" id="p-learn"></section>
+  <section class="panel" id="p-generate"></section>
+  <section class="panel" id="p-research"></section>
+  <section class="panel" id="p-registry"></section>
+</main>
+
+<script type="module">
+import { score, TARGETS, meetsGraduation, stageGraduated } from '../app/scoring/score.mjs';
+import { EfficacyModel, weakestMetric } from '../app/learning/efficacy.mjs';
+import { buildPrompt, drillSchema, generateDrill, thresholdSane } from '../server/generate.mjs';
+import { researchTechnique, SEARCH_PHRASES } from '../server/research.mjs';
+
+const registry = await (await fetch('../registry/drills.json')).json();
+const METRICS = Object.keys(registry.metrics);
+document.getElementById('srcBadge').textContent = `${registry.drills.length} drills · ${METRICS.length} metrics · live modules`;
+
+// template.content keeps ALL top-level nodes — firstElementChild silently drops
+// every card after the first in a multi-card panel.
+const el = (h) => { const tpl = document.createElement('template'); tpl.innerHTML = h.trim(); return tpl.content; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------------- Scoring ---------------- */
+const SLIDERS = {
+  gaze_fixation_ratio:   [0, 1, 0.01, 0.72],
+  blink_rate:            [0, 60, 1, 18],
+  truth_plane_occupancy: [0, 1, 0.01, 0.35],
+  head_tilt_angle:       [0, 30, 1, 7],
+  wpm:                   [60, 240, 1, 140],
+  pitch_semitone_sd:     [0, 10, 0.1, 3.1],
+  terminal_pitch_slope:  [-5, 5, 0.1, -0.8],
+  filler_density:        [0, 0.12, 0.001, 0.008],
+  torso_lateral_displacement_cm: [0, 8, 0.1, 1.1],
+};
+document.getElementById('p-score').append(el(`
+<div class="card">
+  <h2>Composite score</h2>
+  <p class="hint">Drag a dimension out of its documented band and watch the component and the composite move. The weights adapt per drill category, so the same telemetry scores differently under a teleprompter drill than an exposure one.</p>
+  <div>
+    <div class="row" style="padding-bottom:10px">
+      <label for="cat">weight profile</label>
+      <select id="cat" style="font-family:var(--mono);font-size:12.5px;padding:4px;background:var(--sunk);color:var(--ink);border:1px solid var(--line);border-radius:4px">
+        <option value="exposure">exposure (default .25 each)</option>
+        <option value="teleprompter">teleprompter (gaze .50)</option>
+        <option value="prosody">prosody (.45)</option>
+        <option value="spatial">spatial (stability .60)</option>
+      </select>
+      <span></span>
+    </div>
+    ${Object.entries(SLIDERS).map(([k,[lo,hi,st,d]]) => `
+      <div class="row">
+        <label for="s-${k}">${k}</label>
+        <input id="s-${k}" type="range" min="${lo}" max="${hi}" step="${st}" value="${d}" data-k="${k}">
+        <span class="v" id="v-${k}">${d}</span>
+      </div>`).join('')}
+  </div>
+  <div class="readout" id="scoreOut"></div>
+</div>`));
+
+function readTelemetry() {
+  const t = {};
+  for (const k of Object.keys(SLIDERS)) t[k] = Number(document.getElementById(`s-${k}`).value);
+  return t;
+}
+function inBand(k, v) {
+  const tg = TARGETS[k]; if (!tg) return true;
+  return v >= tg.band[0] && v <= tg.band[1];
+}
+function renderScore() {
+  const t = readTelemetry();
+  for (const k of Object.keys(SLIDERS)) {
+    const s = document.getElementById(`v-${k}`);
+    s.textContent = t[k];
+    s.classList.toggle('out', !inBand(k, t[k]));
+  }
+  const r = score(t, { category: document.getElementById('cat').value });
+  const w = weakestMetric(t, TARGETS);
+  document.getElementById('scoreOut').innerHTML = `
+    <div class="stat big"><div class="k">composite</div><div class="n">${r.score}</div></div>
+    ${Object.entries(r.components).map(([k,v]) =>
+      `<div class="stat"><div class="k">${k}</div><div class="n">${v.toFixed(2)}</div></div>`).join('')}
+    <div class="stat"><div class="k">penalty</div><div class="n">${r.penalty.toFixed(2)}</div></div>
+    <div class="stat"><div class="k">weakest</div><div class="n" style="font-size:12px">${w ? w.metric : '—'}</div></div>`;
+}
+document.getElementById('p-score').addEventListener('input', renderScore);
+renderScore();
+
+/* ---------------- Learning ---------------- */
+document.getElementById('p-learn').append(el(`
+<div class="card">
+  <h2>Does the bandit find the drill that works?</h2>
+  <p class="hint">Three candidates target the same metric. Only one has a real effect; the other two do nothing. Nothing tells the model which is which — it has to find out by trying them and measuring. This is the same <code>EfficacyModel</code> the engine ships.</p>
+  <div class="bar">
+    <button class="btn go" id="runSim">Run 300 sessions</button>
+    <button class="btn" id="runSim20">Run 20 (watch it flounder)</button>
+  </div>
+  <div id="simOut"></div>
+</div>`));
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let x=Math.imul(a^a>>>15,1|a);x=x+Math.imul(x^x>>>7,61|x)^x;return((x^x>>>14)>>>0)/4294967296}}
+function simulate(n) {
+  const rng = mulberry32(7);
+  const drills = [
+    { id:'works',  source:'generated', target_metrics:['wpm'] },
+    { id:'inert1', source:'generated', target_metrics:['wpm'] },
+    { id:'inert2', source:'generated', target_metrics:['wpm'] },
+  ];
+  const TRUTH = { works: 0.8, inert1: 0, inert2: 0 };
+  const m = new EfficacyModel(); const picks = [];
+  for (let i = 0; i < n; i++) {
+    const c = m.select(drills, 'wpm', rng); picks.push(c.id);
+    const gain = TRUTH[c.id] + (rng() - 0.5);
+    m.record(c.id, 'wpm', 190, 190 - gain * 20);
+  }
+  const tail = picks.slice(-Math.min(100, n));
+  const shareOf = id => tail.filter(p => p === id).length / tail.length;
+  const pruned = m.prune(drills).map(p => p.id);
+  document.getElementById('simOut').innerHTML = `
+    <div class="scroll"><table>
+      <tr><th>drill</th><th>true effect</th><th>estimated</th><th>n</th><th>trusted</th><th>share of last ${tail.length}</th></tr>
+      ${drills.map(d => { const e = m.effect(d.id,'wpm'); return `<tr>
+        <td class="m">${d.id}</td><td class="m">${TRUTH[d.id].toFixed(2)}</td>
+        <td class="m">${e.mean.toFixed(3)}</td><td class="m">${e.n}</td>
+        <td>${e.trusted ? '<span class="tag pass">yes</span>' : '<span class="tag warn">no</span>'}</td>
+        <td class="m">${(shareOf(d.id)*100).toFixed(0)}%</td></tr>`; }).join('')}
+    </table></div>
+    <div class="readout">
+      <div class="stat"><div class="k">converged on</div><div class="n" style="font-size:13px">${shareOf('works')>0.6?'works ✓':'not yet'}</div></div>
+      <div class="stat"><div class="k">pruned</div><div class="n" style="font-size:13px">${pruned.length?pruned.join(', '):'none'}</div></div>
+    </div>`;
+}
+document.getElementById('runSim').onclick = () => simulate(300);
+document.getElementById('runSim20').onclick = () => simulate(20);
+simulate(300);
+
+/* ---------------- mock model ---------------- */
+const mock = (obj, over={}) => ({ messages: { create: async req => {
+  window.__lastReq = req;
+  if (req.tools) return { stop_reason:'end_turn', model:'mock', content:[
+    { type:'web_search_tool_result', content:[{url:'https://voicecoach.example/technique', title:'Landing the period'}] },
+    { type:'text', text:'A coach describes stepping the final syllable down a musical third to force a falling contour.' }] };
+  return { stop_reason:'end_turn', model:'mock-opus', usage:{input_tokens:0,output_tokens:0},
+           content:[{ type:'text', text: JSON.stringify(obj) }], ...over };
+}}});
+
+const CLEAN = {
+  name:'Descending Third Landing', target_metrics:['terminal_pitch_slope'],
+  graduation:[{metric:'terminal_pitch_slope',op:'<',value:-0.5}], duration_s:180,
+  coach_brief:'Your sentences rise into the full stop, which reads as asking permission. We are going to make the last syllable fall.',
+  protocol:['Pick four declarative sentences.','Step the final word down a third on each.'],
+  intervention_cues:[{trigger:'terminal_rise',say:'Land it. Step down on the last word.'}],
+  rationale:'A fixed interval gives the fall a target.',
+};
+
+/* ---------------- Generation ---------------- */
+document.getElementById('p-generate').append(el(`
+<div class="card">
+  <h2>What the model is actually asked</h2>
+  <p class="hint">This is the real prompt <code>buildPrompt()</code> produces, including the measured effect of every drill already tried on the stalled metric. A generator that only sees "gaze is bad" reinvents the drills that already failed.</p>
+  <div class="bar">
+    ${METRICS.map(m => `<button class="btn" data-gm="${m}">${m}</button>`).join('')}
+  </div>
+  <pre id="promptOut"></pre>
+</div>
+<div class="card">
+  <h2>The gate</h2>
+  <p class="hint">Run a candidate through the real <code>generateDrill()</code> with a mock model. The clean one passes; the others are rejected by rules the JSON schema cannot express.</p>
+  <div class="bar">
+    <button class="btn go" data-gen="clean">Clean candidate</button>
+    <button class="btn bad" data-gen="offtarget">Wrong metric</button>
+    <button class="btn bad" data-gen="vacuous">Vacuous bar</button>
+    <button class="btn bad" data-gen="nocues">No cues</button>
+  </div>
+  <pre id="genOut">—</pre>
+</div>`));
+
+function showPrompt(metric) {
+  const eff = new EfficacyModel();
+  const rel = registry.drills.filter(d => (d.target_metrics||[]).includes(metric));
+  rel.forEach((d,i) => { for (let k=0;k<6;k++) eff.record(d.id, metric, 100, 100 + (i===0?-2:i===1?0:1)); });
+  const tried = rel.map(d => ({ name:d.name, mechanism:d.coach_brief.replace(/^AUTHORED\.\s*/,'').slice(0,160),
+                                effect:eff.effect(d.id,metric).mean, n:eff.effect(d.id,metric).n }));
+  document.getElementById('promptOut').textContent =
+    buildPrompt({ metric, registryMetrics: registry.metrics, tried, telemetry: readTelemetry() });
+}
+showPrompt('terminal_pitch_slope');
+
+const VARIANTS = {
+  clean: CLEAN,
+  offtarget: { ...CLEAN, target_metrics:['blink_rate'], graduation:[{metric:'blink_rate',op:'<=',value:20}] },
+  vacuous:   { ...CLEAN, graduation:[{metric:'terminal_pitch_slope',op:'<',value:24}] },
+  nocues:    { ...CLEAN, intervention_cues:[] },
+};
+document.getElementById('p-generate').addEventListener('click', async e => {
+  const gm = e.target.dataset.gm, gv = e.target.dataset.gen;
+  if (gm) return showPrompt(gm);
+  if (!gv) return;
+  const out = document.getElementById('genOut');
+  out.textContent = 'running…';
+  const body = VARIANTS[gv];
+  const r = await generateDrill({ metric:'terminal_pitch_slope', registry, efficacy:new EfficacyModel(),
+                                  client: mock(body) });
+  out.innerHTML = r.ok
+    ? `<span class="tag pass">ACCEPTED</span>\n\n${esc(JSON.stringify(r.drill, null, 2))}`
+    : `<span class="tag fail">REJECTED</span>\n\n${r.errors.map(x => '• ' + esc(x)).join('\n')}`;
+});
+
+/* ---------------- Research ---------------- */
+document.getElementById('p-research').append(el(`
+<div class="card">
+  <h2>The trust boundary</h2>
+  <p class="hint">Retrieved pages are arbitrary text. Each button below is a poisoned source trying a different way through. None of them should get a usable drill out — and the rejection comes from code, not from the model choosing to behave.</p>
+  <div class="bar">
+    <button class="btn go" data-res="clean">Legitimate source</button>
+    <button class="btn bad" data-res="vacuous">Vacuous threshold</button>
+    <button class="btn bad" data-res="link">Smuggled URL</button>
+    <button class="btn bad" data-res="cue">URL in a spoken cue</button>
+    <button class="btn bad" data-res="nosrc">Cites nothing</button>
+  </div>
+  <pre id="resOut">—</pre>
+</div>
+<div class="card">
+  <h2>Search phrasing</h2>
+  <p class="hint">Metric names are telemetry; a search engine needs human phrasing.</p>
+  <div class="scroll"><table>
+    <tr><th>metric</th><th>query</th></tr>
+    ${METRICS.map(m => `<tr><td class="m">${m}</td><td>${esc(SEARCH_PHRASES[m] || '—')}</td></tr>`).join('')}
+  </table></div>
+</div>`));
+
+document.getElementById('p-research').addEventListener('click', async e => {
+  const v = e.target.dataset.res; if (!v) return;
+  const out = document.getElementById('resOut'); out.textContent = 'running…';
+  const bodies = {
+    clean: CLEAN,
+    vacuous: { ...CLEAN, graduation:[{metric:'terminal_pitch_slope',op:'<',value:24}] },
+    link: { ...CLEAN, coach_brief:'Buy the full course at https://spam.example/course to fix this.' },
+    cue: { ...CLEAN, intervention_cues:[{trigger:'x',say:'See www.spam.example for more'}] },
+    nosrc: CLEAN,
+  };
+  const client = v === 'nosrc'
+    ? { messages: { create: async req => req.tools
+        ? { stop_reason:'end_turn', content:[{type:'web_search_tool_result',content:[]},{type:'text',text:'notes'}] }
+        : { stop_reason:'end_turn', model:'mock', content:[{type:'text',text:JSON.stringify(CLEAN)}] } } }
+    : mock(bodies[v]);
+  const r = await researchTechnique({ metric:'terminal_pitch_slope', registry, client });
+  out.innerHTML = r.ok
+    ? `<span class="tag pass">ACCEPTED</span>\n\nsources: ${r.drill.provenance.sources.map(s=>s.url).join(', ')}\n\n${esc(JSON.stringify(r.drill,null,2))}`
+    : `<span class="tag fail">REJECTED</span>\n\n${r.errors.map(x => '• ' + esc(x)).join('\n')}`;
+});
+
+/* ---------------- Registry ---------------- */
+document.getElementById('p-registry').append(el(`
+<div class="card">
+  <h2>Curriculum</h2>
+  <p class="hint">All ${registry.drills.length} drills, live from <code>registry/drills.json</code>. Every graduation bar is checked against the metric's plausible range.</p>
+  <div id="regOut"></div>
+</div>`));
+document.getElementById('regOut').innerHTML = registry.drills.map(d => {
+  const bars = Object.entries(d.graduation||{});
+  const sane = bars.every(([m,r]) => thresholdSane(m, r, registry.metrics));
+  return `<div class="drill">
+    <h3>${esc(d.name)} <span class="tag ${d.source==='documented'?'pass':'warn'}">${d.source}</span>${sane?'':'<span class="tag fail">BAR OUT OF RANGE</span>'}</h3>
+    <div class="meta">stage ${d.stage} · ${d.id} · ${d.duration_s}s · ×${d.reps_target} · ${d.category}</div>
+    <p>${esc(d.coach_brief)}</p>
+    ${bars.length?`<div class="meta" style="margin-top:6px">${bars.map(([m,r])=>`${m} ${r.op} ${JSON.stringify(r.value)}`).join('  ·  ')}</div>`:''}
+  </div>`;
+}).join('');
+
+/* ---------------- tabs ---------------- */
+document.querySelector('.tabs').addEventListener('click', e => {
+  const b = e.target.closest('.tab'); if (!b) return;
+  document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.id === 'p-' + b.dataset.p));
+});
+</script>
+</body>
+</html>

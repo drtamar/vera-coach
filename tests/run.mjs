@@ -9,6 +9,7 @@ const suites = [
   { file: 'generate.test.mjs',name: 'drill generation' },
   { file: 'research.test.mjs',name: 'technique research' },
   { file: 'integration.test.mjs', name: 'real SDK integration' },
+  { file: 'sandbox.test.mjs', name: 'sandbox browser', needs: 'playwright' },
   { file: 'onramp.test.mjs',  name: 'on-ramp browser', needs: 'playwright' },
 ];
 

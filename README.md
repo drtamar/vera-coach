@@ -124,6 +124,8 @@ app/sensing/           vision.mjs + audio.mjs (pure, testable) · pipeline.mjs (
 app/scoring/           composite score, graduation predicates, three-session gating
 app/learning/          effect estimation, Thompson selection, pruning
 server/tools.mjs       VERA's 8 tools + the schema gate on generated drills
+bin/connect.mjs        account connection: inspect, guide, verify
+sandbox/               local bench — real modules, mock model, no credentials
 server/auth.mjs        platform + credential selection, capability gating, diagnostics
 server/llm.mjs         Anthropic client, structured output, error classification, retry
 server/generate.mjs    tier-2 drill authoring: prompt, call, gate, one repair round-trip
@@ -135,7 +137,16 @@ docs/PROVENANCE.md     every departure from the source documents, and why
 
 ## Connecting to Claude
 
-Two independent choices: **where** Claude runs, and **how** you authenticate.
+```bash
+npm run connect            # inspect what's configured and how to fix it
+npm run connect -- --verify  # prove the credential works — free, no tokens spent
+```
+
+Verification uses the Models API, which is a read: it confirms the credential is live
+without spending a single inference token. It also warns when the account cannot see
+`claude-opus-5-5`.
+
+Two independent choices underneath: **where** Claude runs, and **how** you authenticate.
 
 ```js
 import { buildClient, describeConfig } from './server/auth.mjs';
@@ -191,6 +202,29 @@ Research accepts an optional `allowedDomains` list. It is unset by default, whic
 right call for discovery and the wrong one for a shipped product — curate it before this
 faces users.
 
+## Sandbox
+
+```bash
+npm run sandbox            # http://127.0.0.1:4173
+```
+
+A local bench for exercising the engine with a mock model — no credentials, no model calls,
+nothing spent. Five panels:
+
+- **Scoring** — drag any of the eight dimensions out of its band and watch the component and
+  composite move, under each weight profile.
+- **Learning** — run the bandit against three candidates where only one has a real effect,
+  and watch it find out which.
+- **Generation** — the actual prompt `buildPrompt()` produces, including the measured effect
+  of every drill already tried. Then push clean and broken candidates through the real gate.
+- **Research** — four poisoned sources, each trying a different way through the trust
+  boundary: a vacuous threshold, a smuggled URL, a URL in a spoken cue, and a drill citing
+  nothing. None should get a usable drill out.
+- **Registry** — all 21 drills, live from the JSON, every graduation bar range-checked.
+
+The page imports the engine's real modules over HTTP rather than a bundled copy, so what you
+exercise here cannot drift from what ships.
+
 ## Tests
 
 ```bash
@@ -198,9 +232,10 @@ npm test            # all suites; the browser suite skips if playwright is absen
 npm i && npm test   # includes the on-ramp browser suite
 ```
 
-380 tests: scoring and learning (77), sensing against synthesized ground truth (65), the
+404 tests: scoring and learning (77), sensing against synthesized ground truth (65), the
 privacy invariant (32), tool schemas (21), auth and platform gating (51), drill generation
-(58), technique research (45), real-SDK integration (10), on-ramp UI in a real browser (21).
+(58), technique research (45), real-SDK integration (10), the sandbox in a real browser (24),
+on-ramp UI in a real browser (21).
 
 The integration suite puts the actual SDK in the path and inspects what reaches the wire,
 because every other suite injects a fake client and therefore validates this project's
