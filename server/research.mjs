@@ -23,6 +23,7 @@
  */
 
 import { askForJSON, withRetry, createClient, DEFAULT_MODEL, DEFAULT_MAX_TOKENS } from './llm.mjs';
+import { searchToolFor, assertSupports, resolveModel, PLATFORMS } from './auth.mjs';
 import { drillSchema, shape, gate } from './generate.mjs';
 
 export const PROMPT_VERSION = 'drill-research/1';
@@ -86,13 +87,16 @@ Hard constraints:
  * source URL the search tool actually returned.
  */
 export async function gatherMaterial({
-  metric, client, model = DEFAULT_MODEL,
+  metric, client, model = DEFAULT_MODEL, platform = 'anthropic',
   allowedDomains = null, blockedDomains = null, maxSearches = 4,
 }) {
-  const c = client || await createClient();
+  // Throws PlatformUnsupported on Bedrock, which has no web search at all.
+  // Better here than as an opaque 400 three calls later.
+  const toolType = searchToolFor(platform);
+  const c = client || await createClient({ platform });
   const phrase = SEARCH_PHRASES[metric] || `on-camera coaching exercises for ${metric}`;
 
-  const tool = { type: 'web_search_20260209', name: 'web_search', max_uses: maxSearches };
+  const tool = { type: toolType, name: 'web_search', max_uses: maxSearches };
   if (allowedDomains) tool.allowed_domains = allowedDomains;
   else if (blockedDomains) tool.blocked_domains = blockedDomains;   // never both — 400
 
@@ -101,7 +105,7 @@ export async function gatherMaterial({
 
   do {
     response = await withRetry(() => c.messages.create({
-      model,
+      model: resolveModel(model, platform),
       max_tokens: DEFAULT_MAX_TOKENS,
       thinking: { type: 'adaptive' },
       system: SEARCH_SYSTEM,
@@ -183,15 +187,22 @@ function researchGate(candidate, sources) {
  */
 export async function researchTechnique({
   metric, registry, telemetry = {}, client = null,
-  model = DEFAULT_MODEL, allowedDomains = null, blockedDomains = null,
+  model = DEFAULT_MODEL, platform = 'anthropic',
+  allowedDomains = null, blockedDomains = null,
   now = () => Date.now(),
 }) {
   const metrics = Object.keys(registry.metrics);
   if (!metrics.includes(metric)) return { ok: false, errors: [`unknown metric: ${metric}`] };
 
+  try {
+    assertSupports(platform, 'web_search');
+  } catch (err) {
+    return { ok: false, errors: [err.message], fatal: true, unsupported: true };
+  }
+
   let found;
   try {
-    found = await gatherMaterial({ metric, client, model, allowedDomains, blockedDomains });
+    found = await gatherMaterial({ metric, client, model, platform, allowedDomains, blockedDomains });
   } catch (err) {
     return { ok: false, errors: [`${err.name || 'Error'}: ${err.message}`], fatal: true };
   }
@@ -217,7 +228,7 @@ export async function researchTechnique({
   let data;
   try {
     ({ data } = await withRetry(() => askForJSON({
-      client, model, system: AUTHOR_SYSTEM, user, schema: drillSchema(metrics),
+      client, model, platform, system: AUTHOR_SYSTEM, user, schema: drillSchema(metrics),
     })));
   } catch (err) {
     return { ok: false, errors: [`${err.name || 'Error'}: ${err.message}`], fatal: true };

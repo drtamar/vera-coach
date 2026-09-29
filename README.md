@@ -124,6 +124,7 @@ app/sensing/           vision.mjs + audio.mjs (pure, testable) · pipeline.mjs (
 app/scoring/           composite score, graduation predicates, three-session gating
 app/learning/          effect estimation, Thompson selection, pruning
 server/tools.mjs       VERA's 8 tools + the schema gate on generated drills
+server/auth.mjs        platform + credential selection, capability gating, diagnostics
 server/llm.mjs         Anthropic client, structured output, error classification, retry
 server/generate.mjs    tier-2 drill authoring: prompt, call, gate, one repair round-trip
 server/research.mjs    tier-3: web search, untrusted-material handling, provenance
@@ -132,17 +133,59 @@ onramp/index.html      the Stage 0–1 beginner UI: self-contained, offline, no 
 docs/PROVENANCE.md     every departure from the source documents, and why
 ```
 
-## Enabling generation
+## Connecting to Claude
 
-```bash
-npm i @anthropic-ai/sdk        # optional dependency
-export ANTHROPIC_API_KEY=...   # or run `ant auth login`
+Two independent choices: **where** Claude runs, and **how** you authenticate.
+
+```js
+import { buildClient, describeConfig } from './server/auth.mjs';
+
+const { client } = await buildClient({ platform: 'anthropic', mode: 'auto' });
+console.log(describeConfig());   // what will actually be used, before you rely on it
 ```
 
-Without it, everything else works and generation returns a clear `LLMUnavailable` telling
-you what to install. Requests use `claude-opus-5-5` with adaptive thinking and structured
-outputs — not forced tool use, which returns a 400 on this model family. Research uses
-server-side web search, so it needs no separate search key.
+**Auth modes.** `auto` (default) leaves resolution to the SDK, which is right for most
+deployments. The explicit modes — `api_key`, `oauth`, `workload_identity` — exist so a
+deployment *fails loudly* rather than silently falling through to a credential its operator
+did not intend.
+
+That failure is real and otherwise invisible: an exported `ANTHROPIC_API_KEY` **silently
+outranks** an `ant auth login` profile, so "I logged in but it is billing the wrong account"
+looks like nothing at all. `mode: 'oauth'` refuses to start when a key is set, and
+`describeConfig()` reports the shadowing even in `auto`.
+
+| Mode | Uses | Fails when |
+|---|---|---|
+| `auto` | whatever the SDK resolves first | never — reports what it found |
+| `api_key` | `ANTHROPIC_API_KEY` or an explicit key | no key present |
+| `oauth` | an `ant auth login` profile | a key or token is set, or no profile exists |
+| `workload_identity` | federation environment | a key, token or profile would outrank it |
+
+**Platforms.** Capability is not uniform, and the difference matters:
+
+| Platform | Generation | Research | Note |
+|---|---|---|---|
+| Claude API | yes | yes | dynamic-filtering search |
+| Claude Platform on AWS | yes | yes | dynamic-filtering search |
+| Amazon Bedrock | yes | **no** | no web search on this platform at all |
+| Google Vertex AI | yes | yes | basic search variant only |
+| Microsoft Foundry | yes | yes | basic search variant only |
+
+**Tier-3 research cannot run on Bedrock.** It refuses up front with a reason naming the
+platform, rather than failing later as an opaque 400. Generation works everywhere. Bedrock
+model ids are prefixed automatically.
+
+```bash
+npm i @anthropic-ai/sdk          # first-party / Claude Platform on AWS
+npm i @anthropic-ai/bedrock-sdk  # Bedrock
+npm i @anthropic-ai/vertex-sdk   # Vertex
+npm i @anthropic-ai/foundry-sdk  # Foundry
+```
+
+All are optional. Without one, the rest of the project works and the learning layer returns
+a clear error naming the package to install. Requests use `claude-opus-5-5` with adaptive
+thinking and structured outputs — not forced tool use, which returns a 400 on this model
+family. Research uses server-side web search, so it needs no separate search key.
 
 Research accepts an optional `allowedDomains` list. It is unset by default, which is the
 right call for discovery and the wrong one for a shipped product — curate it before this
@@ -155,9 +198,9 @@ npm test            # all suites; the browser suite skips if playwright is absen
 npm i && npm test   # includes the on-ramp browser suite
 ```
 
-317 tests: scoring and learning (77), sensing against synthesized ground truth (65), the
-privacy invariant (30), tool schemas (21), drill generation (58), technique research (45),
-on-ramp UI in a real browser (21).
+370 tests: scoring and learning (77), sensing against synthesized ground truth (65), the
+privacy invariant (32), tool schemas (21), auth and platform gating (51), drill generation
+(58), technique research (45), on-ramp UI in a real browser (21).
 
 Generation and research are tested entirely against an injected fake client, so `npm test`
 needs neither the Anthropic SDK nor an API key. The injection tests assert that a poisoned

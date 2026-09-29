@@ -147,6 +147,7 @@ export async function generateDrill({
   telemetry = {},
   client = null,
   model = DEFAULT_MODEL,
+  platform = 'anthropic',
   now = () => Date.now(),
 }) {
   const metrics = Object.keys(registry.metrics);
@@ -171,7 +172,7 @@ export async function generateDrill({
 
   const attempt = async extraInstruction => {
     const { data, usage, model: served } = await withRetry(() => askForJSON({
-      client, schema, system, model,
+      client, schema, system, model, platform,
       user: extraInstruction ? `${user}\n\nYour previous attempt was rejected:\n${extraInstruction}\nFix it and return the whole drill again.` : user,
     }));
     return { data, usage, served };
@@ -288,9 +289,9 @@ export function gate(candidate, metrics, stalledMetric, metricsTable = {}) {
  * The full tier-2 trigger. Only generates when the metric has genuinely stalled —
  * generation is a last resort, not a first move.
  */
-export async function generateIfStalled({ metric, registry, efficacy, telemetry, client, force = false }) {
+export async function generateIfStalled({ metric, registry, efficacy, telemetry, client, force = false, ...rest }) {
   if (!force && !efficacy.stalled(registry.drills, metric)) {
     return { ok: false, skipped: 'not stalled', errors: [] };
   }
-  return generateDrill({ metric, registry, efficacy, telemetry, client });
+  return generateDrill({ metric, registry, efficacy, telemetry, client, ...rest });
 }

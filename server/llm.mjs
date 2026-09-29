@@ -6,26 +6,39 @@
  * the project imports the SDK.
  */
 
+import { buildClient, resolveModel } from './auth.mjs';
+
 export const DEFAULT_MODEL = 'claude-opus-5-5';
 export const DEFAULT_MAX_TOKENS = 16000;
 export const DEFAULT_EFFORT = 'high';   // Opus 5.5 defaults to medium; authoring a drill warrants more
 
-let _client = null;
+let _cached = new Map();
 
-/** Lazily construct the real SDK client. Credentials resolve from the environment. */
-export async function createClient() {
-  if (_client) return _client;
-  let Anthropic;
+/**
+ * Construct a client for the configured platform and auth mode.
+ *
+ * Delegates to server/auth.mjs so platform choice and credential choice are one
+ * decision made in one place, rather than an implicit `new Anthropic()` here and
+ * assumptions about availability elsewhere.
+ */
+export async function createClient(config = {}) {
+  const key = `${config.platform || 'anthropic'}::${config.mode || 'auto'}`;
+  if (_cached.has(key)) return _cached.get(key);
+  let built;
   try {
-    ({ default: Anthropic } = await import('@anthropic-ai/sdk'));
-  } catch {
-    throw new LLMUnavailable(
-      'The Anthropic SDK is not installed. Run `npm i @anthropic-ai/sdk` to enable drill generation.'
-    );
+    built = await buildClient(config);
+  } catch (err) {
+    if (err.name === 'AuthError') {
+      throw new LLMUnavailable(err.hint ? `${err.message} ${err.hint}` : err.message);
+    }
+    throw err;
   }
-  _client = new Anthropic();
-  return _client;
+  _cached.set(key, built.client);
+  return built.client;
 }
+
+/** Drop cached clients — used by tests and after a credential change. */
+export function resetClients() { _cached = new Map(); }
 
 export class LLMUnavailable extends Error {
   constructor(message) { super(message); this.name = 'LLMUnavailable'; }
@@ -49,13 +62,15 @@ export async function askForJSON({
   model = DEFAULT_MODEL,
   maxTokens = DEFAULT_MAX_TOKENS,
   effort = DEFAULT_EFFORT,
+  platform = 'anthropic',
 }) {
-  const c = client || await createClient();
+  const c = client || await createClient({ platform });
+  const modelId = resolveModel(model, platform);
 
   let response;
   try {
     response = await c.messages.create({
-      model,
+      model: modelId,
       max_tokens: maxTokens,
       thinking: { type: 'adaptive' },
       output_config: {

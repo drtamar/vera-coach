@@ -176,6 +176,20 @@ Gaze is an **uncalibrated** iris-offset approximation, not the calibrated 3D vec
 specification describes. It holds because the drill setup fixes the lens at eye level at a
 known distance. Report it as an approximation.
 
+## Platform constraints
+
+Capability is not uniform across platforms, and tier-3 research depends on web search:
+
+- **Amazon Bedrock has no web search.** Research refuses there up front, naming the platform.
+  Generation is unaffected.
+- **Vertex and Azure-hosted Foundry** carry only the basic search variant, without dynamic
+  filtering.
+- Bedrock model ids take an `anthropic.` prefix; every other platform takes the bare id.
+
+An exported API key silently outranks an OAuth profile, so a deployment can authenticate as
+an account nobody intended. Explicit auth modes refuse to start in that situation rather than
+proceeding quietly.
+
 ## Privacy
 
 Raw video and audio never leave the device. Sensing runs client-side; only derived numbers
