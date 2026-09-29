@@ -8,6 +8,7 @@ const suites = [
   { file: 'auth.test.mjs',    name: 'auth + platforms' },
   { file: 'generate.test.mjs',name: 'drill generation' },
   { file: 'research.test.mjs',name: 'technique research' },
+  { file: 'integration.test.mjs', name: 'real SDK integration' },
   { file: 'onramp.test.mjs',  name: 'on-ramp browser', needs: 'playwright' },
 ];
 

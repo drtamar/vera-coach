@@ -10,7 +10,8 @@
     "test:sensing": "node tests/sensing.test.mjs",
     "test:privacy": "node tests/privacy.test.mjs",
     "test:onramp": "node tests/onramp.test.mjs",
-    "test:generate": "node tests/generate.test.mjs"
+    "test:generate": "node tests/generate.test.mjs",
+    "smoke": "VERA_LIVE=1 node tests/smoke-live.mjs"
   },
   "devDependencies": {
     "playwright": "^1.47.0"
@@ -27,6 +28,6 @@
     "presence"
   ],
   "optionalDependencies": {
-    "@anthropic-ai/sdk": "^0.70.0"
+    "@anthropic-ai/sdk": "^0.129.0"
   }
 }

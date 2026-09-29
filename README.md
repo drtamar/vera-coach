@@ -198,9 +198,14 @@ npm test            # all suites; the browser suite skips if playwright is absen
 npm i && npm test   # includes the on-ramp browser suite
 ```
 
-370 tests: scoring and learning (77), sensing against synthesized ground truth (65), the
+380 tests: scoring and learning (77), sensing against synthesized ground truth (65), the
 privacy invariant (32), tool schemas (21), auth and platform gating (51), drill generation
-(58), technique research (45), on-ramp UI in a real browser (21).
+(58), technique research (45), real-SDK integration (10), on-ramp UI in a real browser (21).
+
+The integration suite puts the actual SDK in the path and inspects what reaches the wire,
+because every other suite injects a fake client and therefore validates this project's
+assumptions against its own. It needs no credentials and skips when the optional SDK is
+absent.
 
 Generation and research are tested entirely against an injected fake client, so `npm test`
 needs neither the Anthropic SDK nor an API key. The injection tests assert that a poisoned
@@ -215,10 +220,11 @@ Not yet done:
 
 - **`app/sensing/pipeline.mjs` has never run against a real camera.** The metric arithmetic
   is thoroughly tested; the MediaPipe wiring is not.
-- **Neither generation nor research has run against the live API.** Every failure mode is
-  tested against an injected fake — refusals, truncation, non-JSON output, search errors,
-  `pause_turn` resumption, the repair round-trip, prompt injection — but no real request has
-  been made.
+- **Neither generation nor research has completed a real request.** The path is verified as
+  far as the network — the real SDK accepts the request body, every documented parameter
+  survives onto the wire, and a genuine 401 classifies correctly — but no authenticated call
+  has been made. `npm run smoke` makes two real requests when you have a credential; it is
+  the only thing here that spends money and refuses to run without `VERA_LIVE=1`.
 - **There is no UI for stages 1–5.** The on-ramp is the only interface.
 
 ## Honesty
