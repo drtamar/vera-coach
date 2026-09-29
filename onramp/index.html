@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Camera Confidence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Karla:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
+<style>
+:root{
+  --bg:#F4F5F7; --surface:#FFFFFF; --surface-2:#EDEEF1; --surface-3:#E4E6EB;
+  --text-1:#16181F; --text-2:#5A6070; --text-3:#878D9C;
+  --line:#DCDFE6; --line-soft:#E9EBEF;
+  --rec:#D8372A; --rec-soft:#FCE9E7; --rec-ink:#9E2419;
+  --go:#1F7A5C; --go-soft:#E3F2EC; --go-ink:#155941;
+  --hold:#A96A08; --hold-soft:#FBF0DD; --hold-ink:#7C4D04;
+  --shadow:0 1px 2px rgba(16,18,25,.05), 0 2px 8px rgba(16,18,25,.04);
+  --shadow-lg:0 8px 32px rgba(16,18,25,.16), 0 2px 8px rgba(16,18,25,.08);
+  --display:'Bebas Neue', Impact, 'Haettenschweiler', sans-serif;
+  --body:'Karla', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --r:12px; --r-sm:8px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#121419; --surface:#1A1D25; --surface-2:#22262F; --surface-3:#2B2F3A;
+    --text-1:#E6E4E1; --text-2:#969CAA; --text-3:#6A707E;
+    --line:#2B2F3A; --line-soft:#23262F;
+    --rec:#F05548; --rec-soft:#2E1A18; --rec-ink:#FF8C82;
+    --go:#3FB68C; --go-soft:#152C23; --go-ink:#6FD9B4;
+    --hold:#E0A23C; --hold-soft:#2B2317; --hold-ink:#F2C67C;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 2px 8px rgba(0,0,0,.2);
+    --shadow-lg:0 8px 32px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121419; --surface:#1A1D25; --surface-2:#22262F; --surface-3:#2B2F3A;
+  --text-1:#E6E4E1; --text-2:#969CAA; --text-3:#6A707E;
+  --line:#2B2F3A; --line-soft:#23262F;
+  --rec:#F05548; --rec-soft:#2E1A18; --rec-ink:#FF8C82;
+  --go:#3FB68C; --go-soft:#152C23; --go-ink:#6FD9B4;
+  --hold:#E0A23C; --hold-soft:#2B2317; --hold-ink:#F2C67C;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 2px 8px rgba(0,0,0,.2);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.3);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+*{margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--body); background:var(--bg); color:var(--text-1);
+  line-height:1.55; -webkit-font-smoothing:antialiased;
+  padding:0 16px 96px;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--rec);outline-offset:2px;border-radius:4px}
+
+.wrap{max-width:660px;margin:0 auto}
+
+/* ---------- header ---------- */
+.head{padding:40px 0 28px;border-bottom:1px solid var(--line)}
+.rec-line{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--text-3);flex:none}
+.rec-line[data-state="rolling"] .dot{background:var(--rec);animation:blip 1.8s ease-in-out infinite}
+.rec-line[data-state="clear"] .dot{background:var(--go)}
+@keyframes blip{0%,100%{opacity:1}50%{opacity:.25}}
+.rec-label{
+  font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--text-3);font-variant-numeric:tabular-nums
+}
+.rec-line[data-state="rolling"] .rec-label{color:var(--rec)}
+.rec-line[data-state="clear"] .rec-label{color:var(--go)}
+
+h1{
+  font-family:var(--display);font-weight:400;font-size:clamp(52px,15vw,84px);
+  line-height:.86;letter-spacing:.005em;text-wrap:balance;margin-bottom:12px
+}
+.tagline{color:var(--text-2);font-size:15px;max-width:46ch;margin-bottom:24px}
+.tagline b{color:var(--text-1);font-weight:600}
+
+.meter{height:4px;background:var(--surface-3);border-radius:99px;overflow:hidden;margin-bottom:10px}
+.meter-fill{height:100%;background:var(--rec);border-radius:99px;transition:width .45s cubic-bezier(.4,0,.2,1)}
+.meter-fill.done{background:var(--go)}
+.meter-read{
+  display:flex;justify-content:space-between;gap:12px;
+  font-size:12px;color:var(--text-3);font-variant-numeric:tabular-nums
+}
+
+/* ---------- stages ---------- */
+.stages{display:flex;flex-direction:column;gap:12px;padding:28px 0}
+
+.stage{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:var(--shadow);overflow:hidden
+}
+.stage.complete{border-color:var(--go)}
+
+.stage-btn{
+  width:100%;display:flex;align-items:center;gap:14px;text-align:left;
+  padding:18px 18px;transition:background .15s
+}
+.stage-btn:hover{background:var(--surface-2)}
+.stage-num{
+  font-family:var(--display);font-size:13px;letter-spacing:.1em;
+  color:var(--text-3);flex:none;padding-top:3px;min-width:52px
+}
+.stage.complete .stage-num{color:var(--go)}
+.stage-head{flex:1;min-width:0}
+.stage-title{font-family:var(--display);font-size:25px;line-height:1.05;letter-spacing:.01em}
+.stage-sub{font-size:12.5px;color:var(--text-3);margin-top:3px;font-variant-numeric:tabular-nums}
+.chev{flex:none;color:var(--text-3);transition:transform .22s}
+.stage.open .chev{transform:rotate(180deg)}
+
+.pill{
+  display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;padding:3px 7px;border-radius:5px;white-space:nowrap
+}
+.pill.go{background:var(--go-soft);color:var(--go-ink)}
+.pill.wait{background:var(--surface-2);color:var(--text-3)}
+.pill.open{background:var(--rec-soft);color:var(--rec-ink)}
+
+.stage-body{padding:0 18px 18px;border-top:1px solid var(--line-soft)}
+.stage.open .stage-body{display:block}
+.stage:not(.open) .stage-body{display:none}
+.brief{
+  font-size:14.5px;color:var(--text-2);padding:16px 0 4px;
+  max-width:52ch;border-bottom:1px solid var(--line-soft);padding-bottom:16px
+}
+.brief em{color:var(--text-1);font-style:normal;font-weight:600}
+
+.track-label{
+  font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--text-3);padding:20px 0 2px;display:flex;align-items:center;gap:7px
+}
+.track-label::after{content:"";flex:1;height:1px;background:var(--line-soft)}
+.track-label .tick{width:5px;height:5px;border-radius:1px;flex:none}
+.track-label[data-t="exposure"] .tick{background:var(--rec)}
+.track-label[data-t="conviction"] .tick{background:var(--hold)}
+.track-label[data-t="ship"] .tick{background:var(--go)}
+
+/* ---------- exercise ---------- */
+.ex{padding:16px 0;border-bottom:1px solid var(--line-soft)}
+.ex:last-child{border-bottom:none;padding-bottom:4px}
+.ex-top{display:flex;align-items:baseline;gap:12px;margin-bottom:5px}
+.ex-name{font-weight:700;font-size:15.5px;flex:1;text-wrap:balance}
+.ex-count{
+  font-size:12.5px;color:var(--text-3);font-variant-numeric:tabular-nums;
+  font-weight:600;flex:none;white-space:nowrap
+}
+.ex.hit .ex-count{color:var(--go)}
+.ex-desc{font-size:14px;color:var(--text-2);max-width:54ch;margin-bottom:11px}
+.ex-hint{
+  font-size:12.5px;color:var(--text-3);margin-top:-5px;margin-bottom:11px;
+  font-style:italic
+}
+
+.beads{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
+.bead{
+  width:22px;height:5px;border-radius:99px;background:var(--surface-3);
+  transition:background .2s
+}
+.bead.on{background:var(--rec)}
+.bead.froze{background:transparent;box-shadow:inset 0 0 0 1.5px var(--hold)}
+.ex.hit .bead.on{background:var(--go)}
+
+.acts{display:flex;gap:7px;flex-wrap:wrap}
+.btn{
+  padding:8px 13px;border-radius:var(--r-sm);font-size:13.5px;font-weight:600;
+  border:1px solid var(--line);background:var(--surface-2);
+  min-height:44px;transition:background .15s,border-color .15s,transform .08s
+}
+.btn:hover{background:var(--surface-3)}
+.btn:active{transform:scale(.97)}
+.btn.prime{background:var(--rec);color:#fff;border-color:transparent}
+.btn.prime:hover{filter:brightness(1.08)}
+.btn.soft{color:var(--hold-ink);background:var(--hold-soft);border-color:transparent}
+.btn.soft:hover{filter:brightness(.97)}
+.btn.ghost{background:transparent;color:var(--text-2)}
+.btn.ghost:hover{background:var(--surface-2)}
+:root[data-theme="dark"] .btn.soft:hover,
+:root:not([data-theme="light"]) .btn.soft:hover{filter:brightness(1.3)}
+
+/* ---------- froze log ---------- */
+.log{
+  margin-top:8px;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r);padding:20px 18px;box-shadow:var(--shadow)
+}
+.log h2{font-family:var(--display);font-size:24px;letter-spacing:.01em;margin-bottom:4px}
+.log-intro{font-size:13.5px;color:var(--text-2);max-width:50ch;margin-bottom:14px}
+.log-empty{font-size:13.5px;color:var(--text-3);font-style:italic}
+.log-list{display:flex;flex-direction:column;gap:8px}
+.log-row{
+  display:flex;gap:11px;align-items:baseline;font-size:13.5px;
+  padding:9px 11px;background:var(--hold-soft);border-radius:var(--r-sm)
+}
+.log-when{
+  color:var(--hold-ink);font-size:11.5px;font-weight:700;flex:none;
+  font-variant-numeric:tabular-nums;letter-spacing:.02em
+}
+.log-what{color:var(--text-1);min-width:0}
+.log-what span{color:var(--text-2)}
+
+/* ---------- checkpoint ---------- */
+.mark{
+  margin-top:12px;padding:22px 18px;border:1px solid var(--line);
+  border-radius:var(--r);background:var(--surface);box-shadow:var(--shadow)
+}
+.mark h2{font-family:var(--display);font-size:24px;letter-spacing:.01em;margin-bottom:10px}
+.mark p{font-size:14px;color:var(--text-2);max-width:52ch;margin-bottom:10px}
+.mark blockquote{
+  font-size:16px;font-weight:600;color:var(--text-1);border-left:3px solid var(--rec);
+  padding-left:14px;margin:14px 0;text-wrap:balance
+}
+.mark p:last-child{margin-bottom:0}
+
+.foot{display:flex;justify-content:center;padding:28px 0 0}
+
+/* ---------- timer ---------- */
+.veil{
+  position:fixed;inset:0;background:rgba(10,12,16,.82);backdrop-filter:blur(6px);
+  display:none;align-items:center;justify-content:center;padding:24px;z-index:50
+}
+.veil.up{display:flex}
+.box{
+  background:var(--surface);border-radius:18px;padding:32px 26px 24px;
+  box-shadow:var(--shadow-lg);width:100%;max-width:340px;text-align:center
+}
+.finder{
+  position:relative;width:200px;height:200px;margin:0 auto 20px;
+  display:grid;place-items:center;padding:14px;
+  background:
+    linear-gradient(var(--rec),var(--rec)) top left/22px 2px no-repeat,
+    linear-gradient(var(--rec),var(--rec)) top left/2px 22px no-repeat,
+    linear-gradient(var(--rec),var(--rec)) top right/22px 2px no-repeat,
+    linear-gradient(var(--rec),var(--rec)) top right/2px 22px no-repeat,
+    linear-gradient(var(--rec),var(--rec)) bottom left/22px 2px no-repeat,
+    linear-gradient(var(--rec),var(--rec)) bottom left/2px 22px no-repeat,
+    linear-gradient(var(--rec),var(--rec)) bottom right/22px 2px no-repeat,
+    linear-gradient(var(--rec),var(--rec)) bottom right/2px 22px no-repeat
+}
+.finder svg{position:absolute;inset:14px;width:172px;height:172px;transform:rotate(-90deg)}
+.ring-bg{fill:none;stroke:var(--surface-3);stroke-width:3}
+.ring{fill:none;stroke:var(--rec);stroke-width:3;stroke-linecap:round;transition:stroke-dashoffset .95s linear}
+.clock{
+  position:relative;font-family:var(--display);font-size:52px;line-height:1;
+  letter-spacing:.02em;font-variant-numeric:tabular-nums
+}
+.for-what{font-size:14px;color:var(--text-2);margin-bottom:18px;text-wrap:balance}
+.timer-acts{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+
+@media (max-width:420px){
+  body{padding:0 14px 80px}
+  .stage-btn{padding:16px 14px;gap:11px}
+  .stage-num{min-width:46px}
+  .stage-body{padding:0 14px 16px}
+  .finder{width:172px;height:172px}
+  .finder svg{inset:14px;width:144px;height:144px}
+  .clock{font-size:44px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="head">
+    <div class="rec-line" id="recLine" data-state="standby">
+      <span class="dot"></span><span class="rec-label" id="recLabel">Standby</span>
+    </div>
+    <h1>Camera<br>Confidence</h1>
+    <p class="tagline">Two tracks, braided: getting used to <b>being seen</b>, and getting sure of <b>what you think</b>. Counted in reps, not weeks — so a missed day is never a missed deadline.</p>
+    <div class="meter"><div class="meter-fill" id="meterFill" style="width:0%"></div></div>
+    <div class="meter-read">
+      <span id="meterRead">0 of 57 reps logged</span>
+      <span id="frozeRead"></span>
+    </div>
+  </header>
+
+  <main class="stages" id="stages"></main>
+
+  <section class="log">
+    <h2>Froze Log</h2>
+    <p class="log-intro">Every time you seize up and log it anyway, it lands here. This list is the most useful thing in the app — read it back in a month.</p>
+    <div id="logBody"></div>
+  </section>
+
+  <section class="mark">
+    <h2>The Only Metric</h2>
+    <p>Forget view counts, forget whether the take was good. Once a week, ask yourself one question:</p>
+    <blockquote>"Am I slightly less aware of the camera than I was last week?"</blockquote>
+    <p>That's it. Confidence doesn't arrive before you record — it's the residue of having recorded. Every rep counts, including the bad ones. <em>Especially</em> the bad ones.</p>
+  </section>
+
+  <div class="foot"><button class="btn ghost" id="wipe">Reset all progress</button></div>
+</div>
+
+<div class="veil" id="veil" role="dialog" aria-modal="true" aria-labelledby="forWhat">
+  <div class="box">
+    <div class="finder">
+      <svg viewBox="0 0 172 172" aria-hidden="true">
+        <circle class="ring-bg" cx="86" cy="86" r="80"></circle>
+        <circle class="ring" id="ring" cx="86" cy="86" r="80" stroke-dasharray="502.65" stroke-dashoffset="0"></circle>
+      </svg>
+      <div class="clock" id="clock">0:00</div>
+    </div>
+    <p class="for-what" id="forWhat">—</p>
+    <div class="timer-acts">
+      <button class="btn" id="hold">Pause</button>
+      <button class="btn prime" id="shut">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+var STAGES = [
+  { id:"s0", num:"Stage 0", title:"Baseline", sub:"One sitting, about ten minutes",
+    brief:"Two recordings you will not judge. The point is to have a <em>before</em> — so that in a month you can see the distance you covered instead of guessing at it.",
+    ex:[
+      {id:"e1", track:"exposure", name:"Record your why", target:1, timer:60,
+       desc:"Sixty seconds on why you want to do this at all. Then save it somewhere you won't touch — call it the Vault.",
+       hint:"Do not watch it. Not today, not this month. This is your before."},
+      {id:"e2", track:"conviction", name:"Three things you believe", target:1, timer:null,
+       desc:"Write down three sentences you actually believe. Any subject. Then say each one out loud, once, to nobody.",
+       hint:"Nobody is grading these. You are checking that you have opinions at all."}
+    ]},
+
+  { id:"s1", num:"Stage 1", title:"Desensitize", sub:"Get used to the lens, and to having takes",
+    brief:"You can't perform for a camera you're scared of, and you can't sound sure of a thought you haven't had yet. So both at once: <em>exposure</em> kills the flinch, <em>conviction</em> gives you something to put in the frame.",
+    ex:[
+      {id:"e3", track:"exposure", name:"Mirror talk", target:5, timer:300,
+       desc:"Front camera on, recording off. Talk about anything — your day, what you ate, a film you hated. Five minutes.",
+       hint:"No stakes, no file, nothing to delete. You're just letting your face be in view."},
+      {id:"e4", track:"exposure", name:"Record and delete", target:5, timer:60,
+       desc:"Sixty seconds. Then delete it without watching a single frame.",
+       hint:"This trains pressing record, not performing. The delete is the whole point."},
+      {id:"e5", track:"exposure", name:"Record and watch once", target:3, timer:60,
+       desc:"Sixty seconds, then watch it back exactly once. Name one thing that felt natural. Ignore everything else.",
+       hint:"One viewing. One good thing. Anything past that is self-criticism wearing a lab coat."},
+      {id:"e6", track:"conviction", name:"One-sentence takes", target:10, timer:null,
+       desc:"Write one sentence you believe. Say it aloud once. No defending it, no softening it, no camera.",
+       hint:"Ten of these. This is the drill for the thing you said about text chats."},
+      {id:"e7", track:"conviction", name:"The “actually” drill", target:5, timer:null,
+       desc:"Take something everyone in your area agrees on. Find the part you'd push back on. Say it out loud.",
+       hint:"You don't have to be right. You have to find out you can disagree without the sky falling."}
+    ]},
+
+  { id:"s2", num:"Stage 2", title:"Hold a Line", sub:"Longer takes, and no hedging",
+    brief:"Now the two tracks start to load each other. Takes get longer; the thing you're saying has to survive without you hedging it into mush.",
+    ex:[
+      {id:"e8", track:"exposure", name:"Ninety-second take", target:5, timer:90,
+       desc:"Ninety seconds on one topic. One bullet point of notes allowed — one, written in advance, four words maximum.",
+       hint:"The bridge between a scripted minute and three unscripted ones. Don't skip it."},
+      {id:"e9", track:"exposure", name:"Energy calibration", target:3, timer:null,
+       desc:"Watch a creator you like. Ignore their style completely — clock their physical energy. How much do they move? Then record yourself at that level.",
+       hint:"Match the energy, never the personality. Copying a person reads as fake on camera; matching a tempo doesn't."},
+      {id:"e10", track:"conviction", name:"Thirty-second defend", target:8, timer:30,
+       desc:"State a take and hold it for thirty seconds. Banned: “kind of”, “I guess”, “maybe”, “I'm no expert but”, “does that make sense?”",
+       hint:"Hedges are the tell, not filler words. A smooth “um”-free hedge still sounds like you don't believe yourself."},
+      {id:"e11", track:"conviction", name:"Disagree on the record", target:3, timer:null,
+       desc:"Find something you read this week that you think is wrong. Record yourself saying so, and saying why.",
+       hint:"Being on record disagreeing is the exact fear. Do it three times and it stops being a cliff."}
+    ]},
+
+  { id:"s3", num:"Stage 3", title:"Presence", sub:"Real takes, and finding your format",
+    brief:"Stop practising. Start making things — including the experiment that tells you what kind of channel you're actually running.",
+    ex:[
+      {id:"e12", track:"exposure", name:"The three-minute take", target:3, timer:180,
+       desc:"Three minutes, no script, no notes, on something you genuinely care about. Watch it back and name one moment you'd keep and one you'd cut.",
+       hint:"Keep and cut. Two decisions. That's editing, and it's a different muscle from performing."},
+      {id:"e13", track:"exposure", name:"Set your look-point", target:1, timer:null,
+       desc:"Stick a dot of tape just above your lens. That dot is your viewer's eyes. Look at it, not at yourself on the screen.",
+       hint:"Once you set this up you never think about it again, and it fixes most of what reads as “shifty” on camera."},
+      {id:"e14", track:"ship", name:"Format probe", target:2, timer:null,
+       desc:"Record the same topic twice. Once as a face-to-camera opinion, once as a structured explainer with a beginning and an end. Watch both.",
+       hint:"You said you don't know which you are yet. You can't reason your way to the answer — this is how you find out."},
+      {id:"e15", track:"ship", name:"One real take", target:1, timer:null,
+       desc:"Make something you'd genuinely be willing to post. You don't have to post it. Just take it all the way to finished.",
+       hint:"The goal is to learn what “done” feels like, so you know what you're aiming at."},
+      {id:"e16", track:"ship", name:"Publish one", target:1, timer:null,
+       desc:"Upload it. Unlisted counts. Public is better. The act of publishing is the last wall between practising and doing.",
+       hint:"After this, everything else is repetition. This is the rep that changes the category you're in."}
+    ]},
+
+  { id:"s4", num:"Ongoing", title:"Maintenance", sub:"No finish line on these",
+    brief:"Nothing here completes. These are the habits that keep the ground you took.",
+    ex:[
+      {id:"e17", track:"exposure", name:"Daily rep", target:null, timer:null,
+       desc:"Record something. Anything, any length. A thought, a reaction, thirty seconds of nonsense.",
+       hint:"Length is irrelevant. The rep is the point."},
+      {id:"e18", track:"ship", name:"Vault review", target:null, timer:null,
+       desc:"Watch your Stage 0 baseline, then your most recent recording, back to back.",
+       hint:"This is the only honest measurement of progress you have. Do it monthly, not daily."},
+      {id:"e19", track:"conviction", name:"Read the froze log", target:null, timer:null,
+       desc:"Read back your froze entries from a month ago and notice which of those things you now do without thinking.",
+       hint:"What felt impossible in week one is usually invisible by week six. You will not notice unless you look."}
+    ]}
+];
+
+var KEY = "camconf.v1";
+var ALL = [];
+STAGES.forEach(function(s){ s.ex.forEach(function(e){ e.stage = s.id; ALL.push(e); }); });
+var GOAL = ALL.reduce(function(n,e){ return n + (e.target || 0); }, 0);
+
+var state = { reps:{}, froze:[], open:"s0" };
+
+function load(){
+  try{
+    var raw = localStorage.getItem(KEY);
+    if(!raw) return;
+    var v = JSON.parse(raw);
+    if(v && typeof v === "object"){
+      state.reps  = v.reps  && typeof v.reps === "object" ? v.reps : {};
+      state.froze = Array.isArray(v.froze) ? v.froze : [];
+      state.open  = typeof v.open === "string" ? v.open : "s0";
+    }
+  }catch(err){ /* storage blocked or corrupt — run from defaults */ }
+}
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(err){ /* nothing to do */ }
+}
+
+function rep(id){
+  var r = state.reps[id];
+  return { done:(r && r.done) || 0, froze:(r && r.froze) || 0 };
+}
+function logged(id){ var r = rep(id); return r.done + r.froze; }
+function hit(e){ return e.target !== null && logged(e.id) >= e.target; }
+function stageDone(s){ return s.ex.every(hit); }
+
+function esc(t){
+  return String(t).replace(/[&<>"]/g, function(c){
+    return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c];
+  });
+}
+function mmss(s){
+  var m = Math.floor(s/60), r = s % 60;
+  return m + ":" + (r < 10 ? "0" : "") + r;
+}
+function label(sec){
+  if(sec >= 60 && sec % 60 === 0) return (sec/60) + " min";
+  if(sec >= 60) return mmss(sec);
+  return sec + " sec";
+}
+
+/* ---------------- render ---------------- */
+
+function draw(){
+  var total = 0, frozeTotal = 0;
+  ALL.forEach(function(e){
+    var r = rep(e.id);
+    frozeTotal += r.froze;
+    if(e.target !== null) total += Math.min(r.done + r.froze, e.target);
+  });
+
+  var pct = GOAL ? Math.round((total/GOAL)*100) : 0;
+  var fill = document.getElementById("meterFill");
+  fill.style.width = pct + "%";
+  fill.classList.toggle("done", total >= GOAL);
+  document.getElementById("meterRead").textContent = total + " of " + GOAL + " reps logged";
+  document.getElementById("frozeRead").textContent =
+    frozeTotal ? frozeTotal + (frozeTotal === 1 ? " froze rep" : " froze reps") : "";
+
+  var line = document.getElementById("recLine");
+  var lab  = document.getElementById("recLabel");
+  if(total >= GOAL && GOAL > 0){ line.dataset.state = "clear";   lab.textContent = "Clear"; }
+  else if(total > 0){           line.dataset.state = "rolling"; lab.textContent = "Rec";   }
+  else {                        line.dataset.state = "standby"; lab.textContent = "Standby"; }
+
+  document.getElementById("stages").innerHTML = STAGES.map(card).join("");
+  drawLog();
+}
+
+function card(s){
+  var done = stageDone(s);
+  var isOpen = state.open === s.id;
+  var idx = STAGES.indexOf(s);
+  var prevDone = idx === 0 || stageDone(STAGES[idx-1]);
+  var ongoing = s.ex.every(function(e){ return e.target === null; });
+
+  var tag;
+  if(ongoing)        tag = '<span class="pill open">Ongoing</span>';
+  else if(done)      tag = '<span class="pill go">Complete</span>';
+  else if(prevDone)  tag = '<span class="pill open">In play</span>';
+  else               tag = '<span class="pill wait">Not yet</span>';
+
+  var counted = s.ex.filter(function(e){ return e.target !== null; });
+  var at = counted.reduce(function(n,e){ return n + Math.min(logged(e.id), e.target); }, 0);
+  var of = counted.reduce(function(n,e){ return n + e.target; }, 0);
+
+  var groups = "", seen = null;
+  s.ex.forEach(function(e){
+    if(e.track !== seen){
+      seen = e.track;
+      var name = e.track === "exposure" ? "Exposure"
+               : e.track === "conviction" ? "Conviction" : "Shipping";
+      groups += '<div class="track-label" data-t="' + e.track + '"><span class="tick"></span>' + name + '</div>';
+    }
+    groups += row(e);
+  });
+
+  return '' +
+  '<section class="stage' + (isOpen ? " open" : "") + (done && !ongoing ? " complete" : "") + '" data-stage="' + s.id + '">' +
+    '<button class="stage-btn" data-toggle="' + s.id + '" aria-expanded="' + isOpen + '">' +
+      '<span class="stage-num">' + esc(s.num) + '</span>' +
+      '<span class="stage-head">' +
+        '<span class="stage-title">' + esc(s.title) + '</span>' +
+        '<span class="stage-sub">' + esc(s.sub) + (of ? " &middot; " + at + "/" + of + " reps" : "") + '</span>' +
+      '</span>' +
+      tag +
+      '<svg class="chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 9l7 7 7-7"/></svg>' +
+    '</button>' +
+    '<div class="stage-body">' +
+      '<p class="brief">' + s.brief + '</p>' +
+      groups +
+    '</div>' +
+  '</section>';
+}
+
+function row(e){
+  var r = rep(e.id), n = r.done + r.froze, done = hit(e);
+  var beads = "";
+
+  if(e.target !== null){
+    for(var i = 0; i < e.target; i++){
+      var cls = "bead";
+      if(i < r.done) cls += " on";
+      else if(i < n) cls += " on froze";
+      beads += '<span class="' + cls + '"></span>';
+    }
+  }
+
+  var count = e.target === null
+    ? (n ? n + (n === 1 ? " rep" : " reps") : "no reps yet")
+    : Math.min(n, e.target) + " / " + e.target;
+
+  return '' +
+  '<div class="ex' + (done ? " hit" : "") + '">' +
+    '<div class="ex-top">' +
+      '<span class="ex-name">' + esc(e.name) + '</span>' +
+      '<span class="ex-count">' + count + '</span>' +
+    '</div>' +
+    '<p class="ex-desc">' + e.desc + '</p>' +
+    '<p class="ex-hint">' + e.hint + '</p>' +
+    (beads ? '<div class="beads">' + beads + '</div>' : '') +
+    '<div class="acts">' +
+      (e.timer ? '<button class="btn" data-timer="' + e.id + '">Start ' + label(e.timer) + '</button>' : '') +
+      '<button class="btn prime" data-log="' + e.id + '">Logged it</button>' +
+      '<button class="btn soft" data-froze="' + e.id + '">Froze — log it anyway</button>' +
+    '</div>' +
+  '</div>';
+}
+
+function drawLog(){
+  var box = document.getElementById("logBody");
+  if(!state.froze.length){
+    box.innerHTML = '<p class="log-empty">Nothing logged yet. When you seize up, put it here — that rep counts more than the smooth ones.</p>';
+    return;
+  }
+  var rows = state.froze.slice().reverse().slice(0, 40).map(function(f){
+    var e = ALL.filter(function(x){ return x.id === f.ex; })[0];
+    var when = new Date(f.at);
+    var stamp = when.toLocaleDateString(undefined, { month:"short", day:"numeric" });
+    return '<div class="log-row">' +
+      '<span class="log-when">' + esc(stamp) + '</span>' +
+      '<span class="log-what">' + esc(e ? e.name : "Exercise") +
+        (f.note ? ' <span>— ' + esc(f.note) + '</span>' : '') +
+      '</span></div>';
+  }).join("");
+  box.innerHTML = '<div class="log-list">' + rows + '</div>';
+}
+
+/* ---------------- actions ---------------- */
+
+function bump(id, froze, note){
+  var r = state.reps[id] || (state.reps[id] = { done:0, froze:0 });
+  if(froze){
+    r.froze++;
+    state.froze.push({ ex:id, at:Date.now(), note:note || "" });
+  } else {
+    r.done++;
+  }
+  save();
+  draw();
+}
+
+document.addEventListener("click", function(ev){
+  var t = ev.target.closest("[data-toggle],[data-log],[data-froze],[data-timer]");
+  if(!t) return;
+
+  if(t.dataset.toggle){
+    state.open = state.open === t.dataset.toggle ? null : t.dataset.toggle;
+    save(); draw(); return;
+  }
+  if(t.dataset.log){ bump(t.dataset.log, false); return; }
+  if(t.dataset.froze){
+    var note = window.prompt(
+      "That still counts. Freezing is the thing you're training out of — you can't train it without meeting it.\n\nWhat happened? (optional)"
+    );
+    if(note === null) return;
+    bump(t.dataset.froze, true, note.trim().slice(0, 140));
+    return;
+  }
+  if(t.dataset.timer){
+    var e = ALL.filter(function(x){ return x.id === t.dataset.timer; })[0];
+    if(e) open(e);
+  }
+});
+
+document.getElementById("wipe").addEventListener("click", function(){
+  if(!window.confirm("Clear every rep and the whole froze log? This can't be undone.")) return;
+  state = { reps:{}, froze:[], open:"s0" };
+  save(); draw();
+});
+
+/* ---------------- timer ---------------- */
+
+var LEN = 2 * Math.PI * 80;
+var veil  = document.getElementById("veil");
+var ring  = document.getElementById("ring");
+var clock = document.getElementById("clock");
+var holdB = document.getElementById("hold");
+
+var T = { ex:null, span:0, endsAt:0, left:0, paused:true, tick:0 };
+
+ring.setAttribute("stroke-dasharray", LEN.toFixed(2));
+
+function open(e){
+  T.ex = e; T.span = e.timer; T.left = e.timer; T.paused = false;
+  T.endsAt = Date.now() + e.timer * 1000;
+  document.getElementById("forWhat").textContent = e.name;
+  holdB.textContent = "Pause";
+  paint();
+  veil.classList.add("up");
+  clearInterval(T.tick);
+  T.tick = setInterval(step, 250);
+}
+
+function step(){
+  if(T.paused) return;
+  T.left = Math.max(0, Math.round((T.endsAt - Date.now())/1000));
+  paint();
+  if(T.left <= 0){
+    T.paused = true;
+    clearInterval(T.tick);
+    holdB.textContent = "Restart";
+  }
+}
+
+function paint(){
+  clock.textContent = mmss(T.left);
+  var gone = T.span ? (T.span - T.left)/T.span : 0;
+  ring.style.strokeDashoffset = (LEN * gone).toFixed(2);
+  ring.style.stroke = T.left <= 0 ? "var(--go)" : "var(--rec)";
+}
+
+holdB.addEventListener("click", function(){
+  if(T.left <= 0){
+    T.left = T.span; T.paused = false;
+    T.endsAt = Date.now() + T.span * 1000;
+    holdB.textContent = "Pause";
+    paint();
+    clearInterval(T.tick);
+    T.tick = setInterval(step, 250);
+    return;
+  }
+  T.paused = !T.paused;
+  if(!T.paused) T.endsAt = Date.now() + T.left * 1000;
+  holdB.textContent = T.paused ? "Resume" : "Pause";
+});
+
+document.getElementById("shut").addEventListener("click", shut);
+veil.addEventListener("click", function(ev){ if(ev.target === veil) shut(); });
+document.addEventListener("keydown", function(ev){
+  if(ev.key === "Escape" && veil.classList.contains("up")) shut();
+});
+
+function shut(){
+  clearInterval(T.tick);
+  T.paused = true;
+  veil.classList.remove("up");
+}
+
+load();
+draw();
+})();
+</script>
+</body>
+</html>

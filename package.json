@@ -1,0 +1,19 @@
+{
+  "name": "vera-coach",
+  "version": "0.1.0",
+  "description": "On-camera performance coach: multimodal telemetry, a 21-drill curriculum, and a self-learning drill layer. All sensing runs on-device.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "node tests/run.mjs",
+    "test:core": "node tests/core.test.mjs",
+    "test:sensing": "node tests/sensing.test.mjs",
+    "test:privacy": "node tests/privacy.test.mjs",
+    "test:onramp": "node tests/onramp.test.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.47.0"
+  },
+  "engines": { "node": ">=20" },
+  "keywords": ["on-camera", "coaching", "mediapipe", "telemetry", "public-speaking", "presence"]
+}

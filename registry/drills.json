@@ -1,0 +1,1027 @@
+{
+  "$schema": "./drill.schema.json",
+  "version": 1,
+  "metrics": {
+    "gaze_fixation_ratio": {
+      "unit": "ratio",
+      "target": [
+        0.65,
+        0.8
+      ],
+      "deficient": "<0.45 evasive scanning",
+      "overcorrected": ">0.95 unblinking stare"
+    },
+    "blink_rate": {
+      "unit": "per_min",
+      "target": [
+        12,
+        22
+      ],
+      "deficient": ">38 acute stress flutter",
+      "overcorrected": "<6 visual freeze"
+    },
+    "truth_plane_occupancy": {
+      "unit": "ratio",
+      "target": [
+        0.2,
+        0.4
+      ],
+      "deficient": "hands pinned or below frame",
+      "overcorrected": "flailing in upper facial quadrant"
+    },
+    "head_tilt_angle": {
+      "unit": "deg",
+      "target": [
+        5,
+        12
+      ],
+      "deficient": "0 rigid vertical axis",
+      "overcorrected": ">15 permanent slouch"
+    },
+    "wpm": {
+      "unit": "words_min",
+      "target": [
+        130,
+        150
+      ],
+      "deficient": ">170 adrenalized rushing",
+      "overcorrected": "<105 cognitive stall"
+    },
+    "pitch_semitone_sd": {
+      "unit": "semitones",
+      "target": [
+        2.5,
+        6.0
+      ],
+      "deficient": "<1.2 monotone",
+      "overcorrected": "erratic theatrical indicating"
+    },
+    "terminal_pitch_slope": {
+      "unit": "dF0",
+      "target": [
+        -5,
+        0
+      ],
+      "deficient": "positive contour = uptalk",
+      "overcorrected": "harsh downward clipping"
+    },
+    "filler_density": {
+      "unit": "ratio",
+      "target": [
+        0.0,
+        0.013
+      ],
+      "deficient": ">0.045 verbal crutches",
+      "overcorrected": "0 with robotic pauses"
+    }
+  },
+  "drills": [
+    {
+      "id": "0.1",
+      "stage": 0,
+      "name": "Record Your Why",
+      "source": "original",
+      "category": "baseline",
+      "provenance": {
+        "lineage": "Camera Confidence on-ramp",
+        "document": "original"
+      },
+      "duration_s": 60,
+      "reps_target": 1,
+      "telemetry_gated": false,
+      "target_metrics": [],
+      "graduation": {},
+      "coach_brief": "Before anything is measured, we need a before. Sixty seconds on why you want to do this at all. You will not watch it back today, this month, or until I tell you to.",
+      "protocol": [
+        "Record 60 seconds answering: why do I want to do this?",
+        "Save it somewhere you will not touch. This is the Vault.",
+        "Do not watch it."
+      ],
+      "intervention_cues": [
+        {
+          "trigger": "asks_to_rewatch",
+          "say": "Not yet. Its whole value is that you have not seen it since."
+        }
+      ]
+    },
+    {
+      "id": "0.2",
+      "stage": 0,
+      "name": "Three Things You Believe",
+      "source": "original",
+      "category": "conviction",
+      "provenance": {
+        "lineage": "Camera Confidence conviction track",
+        "document": "original"
+      },
+      "duration_s": 300,
+      "reps_target": 1,
+      "telemetry_gated": false,
+      "target_metrics": [],
+      "graduation": {},
+      "coach_brief": "Freezing on camera is half the problem. The other half is not being sure your take is worth stating. We check you have opinions at all before we film any.",
+      "protocol": [
+        "Write three sentences you actually believe. Any subject.",
+        "Say each one out loud, once, to nobody.",
+        "No defending, no softening."
+      ],
+      "intervention_cues": [
+        {
+          "trigger": "hedges_in_writing",
+          "say": "Strike every 'I think' and 'kind of'. Write the claim, not the apology for it."
+        }
+      ]
+    },
+    {
+      "id": "1.1",
+      "stage": 1,
+      "name": "Monocular Lens Intimacy Protocol",
+      "source": "documented",
+      "category": "exposure",
+      "provenance": {
+        "lineage": "Patrick Tucker (Secrets of Screen Acting); Tony Barr (Acting for the Camera)",
+        "document": "coach-manual 1.1 / curriculum 1.1"
+      },
+      "duration_s": 180,
+      "reps_target": 3,
+      "telemetry_gated": true,
+      "target_metrics": [
+        "gaze_fixation_ratio",
+        "blink_rate"
+      ],
+      "graduation": {
+        "gaze_fixation_ratio": {
+          "op": ">=",
+          "value": 0.75
+        },
+        "blink_rate": {
+          "op": "<=",
+          "value": 24
+        },
+        "head_yaw_deviation_deg": {
+          "op": "<",
+          "value": 5
+        }
+      },
+      "setup": {
+        "lens_at_eye_level": true,
+        "distance_ft": [
+          2.5,
+          3
+        ],
+        "self_view": "off"
+      },
+      "coach_brief": "The camera does not act as an auditorium of strangers; it acts as an intimate confidant eavesdropping on your thoughts. When you look at the glass, your brain sees an inanimate, judgment-free cylinder. We must replace that cylinder with a specific, emotionally safe individual.",
+      "protocol": [
+        "Name one real person who represents unconditional safety and warmth.",
+        "Close your eyes and visualize their face directly behind the camera glass.",
+        "Open your eyes. Hold an unbroken, relaxed gaze into the centre of the lens barrel for 60 seconds in silence.",
+        "Keeping that gaze, speak for 90 seconds describing something low-stakes and concrete, directed only at them."
+      ],
+      "intervention_cues": [
+        {
+          "trigger": "gaze_breaks_downward",
+          "say": "Stay with them. They are right behind the glass."
+        },
+        {
+          "trigger": "eyes_hard_or_staring",
+          "say": "Soften the eyelids. You are sharing, not interrogating."
+        },
+        {
+          "trigger": "blink_rate_high",
+          "say": "Exhale slowly through the mouth and release the ocular strain."
+        }
+      ]
+    },
+    {
+      "id": "1.2",
+      "stage": 1,
+      "name": "Second Circle Diaphragmatic Anchoring",
+      "source": "documented",
+      "category": "exposure",
+      "provenance": {
+        "lineage": "Patsy Rodenburg (The Second Circle); Roger Love (Set Your Voice Free)",
+        "document": "coach-manual 1.2 / curriculum 1.2"
+      },
+      "duration_s": 240,
+      "reps_target": 3,
+      "telemetry_gated": true,
+      "target_metrics": [
+        "pitch_semitone_sd"
+      ],
+      "graduation": {
+        "clavicular_rise_mm": {
+          "op": "<",
+          "value": 5
+        },
+        "pitch_baseline_shift": {
+          "op": "<=",
+          "value": 0
+        }
+      },
+      "coach_brief": "Energy exists in three circles: First is withdrawn into yourself; Third is forced, theatrical and pushy; Second is direct, connected, two-way energy. We ground Second Circle energy through the diaphragm, dropping your speaking voice out of the throat and into the chest.",
+      "protocol": [
+        "Sit or stand tall, shoulders rolled back and down. Kill the defensive turtle reflex.",
+        "Right palm flat over the navel, left hand over the sternum.",
+        "Exhale completely on an unvoiced 'shh' for 6 seconds, abdominal wall pulling toward the spine.",
+        "Inhale nasally for 4 seconds. The belly pushes the right palm out; the left hand does not move.",
+        "Hold 2 seconds, then release a warm 'Ahhhh' straight into the lens. Repeat for 8 cycles.",
+        "Deliver a 30-second introduction immediately on the final exhale."
+      ],
+      "intervention_cues": [
+        {
+          "trigger": "clavicle_rise",
+          "say": "Drop the air into the basement. The chest stays still."
+        },
+        {
+          "trigger": "vocal_fry_or_throat_squeeze",
+          "say": "Send the sound from behind the belly button, not the vocal cords."
+        }
+      ]
+    },
+    {
+      "id": "1.3",
+      "stage": 1,
+      "name": "The Yap Protocol",
+      "source": "documented",
+      "category": "exposure",
+      "provenance": {
+        "lineage": "Vanessa Van Edwards (Cues); Ali Abdaal (Coffee Mode)",
+        "document": "coach-manual 1.3 / curriculum 1.3"
+      },
+      "duration_s": 120,
+      "reps_target": 4,
+      "telemetry_gated": true,
+      "target_metrics": [
+        "wpm",
+        "filler_density"
+      ],
+      "graduation": {
+        "speech_onset_latency_s": {
+          "op": "<",
+          "value": 2.0
+        },
+        "wpm": {
+          "op": "between",
+          "value": [
+            120,
+            155
+          ]
+        },
+        "filler_density": {
+          "op": "<",
+          "value": 0.05
+        },
+        "restarts": {
+          "op": "==",
+          "value": 0
+        }
+      },
+      "coach_brief": "Camera freeze stems from perfectionism — trying to draft, edit and speak a sentence simultaneously. To cure this we enter Coffee Mode: casual, low-stakes verbalization where mistakes are welcomed and forward momentum is non-negotiable.",
+      "protocol": [
+        "Receive a randomized, unannounced low-stakes prompt.",
+        "Countdown 3, 2, 1, talk. No notes, no outline, no drafting.",
+        "Speak continuously for 30 to 45 seconds.",
+        "If you stumble you may not stop, restart, or apologize. Shrug it off verbally and continue.",
+        "Replay once. Name one moment of genuine warmth or personality."
+      ],
+      "intervention_cues": [
+        {
+          "trigger": "freeze_or_restart",
+          "say": "Do not restart. Keep talking about anything in the room. Keep the motor running."
+        },
+        {
+          "trigger": "apology_detected",
+          "say": "Never apologize to the lens. The audience never knows what you planned to say."
+        }
+      ]
+    },
+    {
+      "id": "1.4",
+      "stage": 1,
+      "name": "Record and Delete",
+      "source": "original",
+      "category": "exposure",
+      "provenance": {
+        "lineage": "Camera Confidence on-ramp",
+        "document": "original"
+      },
+      "duration_s": 60,
+      "reps_target": 5,
+      "telemetry_gated": false,
+      "target_metrics": [],
+      "graduation": {},
+      "coach_brief": "This trains pressing record, not performing. The delete is the whole point — there is no artefact to be judged, so there is nothing to brace against.",
+      "protocol": [
+        "Record 60 seconds on anything.",
+        "Delete it without watching a single frame."
+      ],
+      "intervention_cues": [
+        {
+          "trigger": "watches_before_deleting",
+          "say": "Delete it unseen. You are training the hand that hits record, not the eye that reviews."
+        }
+      ]
+    },
+    {
+      "id": "1.5",
+      "stage": 1,
+      "name": "One-Sentence Takes",
+      "source": "original",
+      "category": "conviction",
+      "provenance": {
+        "lineage": "Camera Confidence conviction track",
+        "document": "original"
+      },
+      "duration_s": 60,
+      "reps_target": 10,
+      "telemetry_gated": false,
+      "target_metrics": [],
+      "graduation": {},
+      "coach_brief": "The drill for hedging. Write one sentence you believe. Say it aloud once. No defending it, no softening it, no camera. Ten of these.",
+      "protocol": [
+        "Write one sentence you believe.",
+        "Say it aloud, once.",
+        "Do not qualify it, defend it, or add 'but that's just me'."
+      ],
+      "intervention_cues": [
+        {
+          "trigger": "hedge_word_used",
+          "say": "You hedged. Say it again without the escape hatch."
+        }
+      ]
+    },
+    {
+      "id": "1.6",
+      "stage": 1,
+      "name": "The Actually Drill",
+      "source": "original",
+      "category": "conviction",
+      "provenance": {
+        "lineage": "Camera Confidence conviction track",
+        "document": "original"
+      },
+      "duration_s": 120,
+      "reps_target": 5,
+      "telemetry_gated": false,
+      "target_metrics": [],
+      "graduation": {},
+      "coach_brief": "You do not have to be right. You have to find out that you can disagree without the sky falling.",
+      "protocol": [
+        "Take something everyone in your area agrees on.",
+        "Find the part you would push back on.",
+        "Say it out loud."
+      ],
+      "intervention_cues": [
+        {
+          "trigger": "cannot_find_disagreement",
+          "say": "Then pick the part you find least convincing and start there. Mild counts."
+        }
+      ]
+    },
+    {
+      "id": "2.1",
+      "stage": 2,
+      "name": "TruthPlane Navel-Zone Gesture Calibrator",
+      "source": "documented",
+      "category": "spatial",
+      "provenance": {
+        "lineage": "Mark Bowden (Winning Body Language)",
+        "document": "coach-manual 2.1 / curriculum 2.1"
+      },
+      "duration_s": 300,
+      "reps_target": 3,
+      "telemetry_gated": true,
+      "target_metrics": [
+        "truth_plane_occupancy"
+      ],
+      "graduation": {
+        "truth_plane_occupancy": {
+          "op": "between",
+          "value": [
+            0.4,
+            0.7
+          ]
+        },
+        "hands_below_frame_events": {
+          "op": "==",
+          "value": 0
+        }
+      },
+      "setup": {
+        "framing": "navel to 2in above crown"
+      },
+      "coach_brief": "Human survival instincts scan the hands first to assess threat or safety. When your hands drop below the camera frame into the Grotesque Plane, you appear closed off. When they flail near your face in the Passion Plane, you look agitated. We anchor gestures in the TruthPlane — the band between navel and sternum — with open palms.",
+      "protocol": [
+        "Frame from the navel to two inches above the crown.",
+        "Hands at navel height, elbows three inches clear of the ribcage.",
+        "Open palms angled 45 degrees toward each other and the lens. No fists, no pointing.",
+        "Deliver a 2-minute project overview. Every gesture originates from and returns to the TruthPlane."
+      ],
+      "notes": "SOURCE CONFLICT: curriculum flags hands below frame >5s; coach manual stops the take at >3s. Implemented at 3s per the operational document.",
+      "intervention_cues": [
+        {
+          "trigger": "hands_below_frame",
+          "say": "Bring them up to the navel. Keep your hands in the room."
+        },
+        {
+          "trigger": "elbows_pinned",
+          "say": "Create space between your elbows and your ribs. Claim your frame."
+        }
+      ]
+    },
+    {
+      "id": "2.2",
+      "stage": 2,
+      "name": "Warmth-Competence Behavioral Modulation",
+      "source": "documented",
+      "category": "spatial",
+      "provenance": {
+        "lineage": "Vanessa Van Edwards (Cues)",
+        "document": "coach-manual 2.2 / curriculum 2.2"
+      },
+      "duration_s": 240,
+      "reps_target": 3,
+      "telemetry_gated": true,
+      "target_metrics": [
+        "head_tilt_angle"
+      ],
+      "graduation": {
+        "head_tilt_angle": {
+          "op": "between",
+          "value": [
+            5,
+            12
+          ]
+        },
+        "au12_smile_events": {
+          "op": ">=",
+          "value": 2
+        },
+        "brow_flash_rate": {
+          "op": "between",
+          "value": [
+            2,
+            4
+          ]
+        }
+      },
+      "coach_brief": "Charisma is the simultaneous transmission of two signals: Competence and Warmth. Only competence reads cold and clinical; only warmth reads uncertain and deferential. We train them independently before fusing them.",
+      "protocol": [
+        "Run 1, pure competence, 60s: spine vertical, chin level, zero head tilt, steady gaze, measured TruthPlane holds.",
+        "Run 2, pure warmth, 60s: 5-degree forward lean, 8-degree lateral head tilt, triple nods, Duchenne smile, brow flashes.",
+        "Run 3, integrated blend, 90s: upright posture and direct gaze as the baseline, warmth layered at greeting, explanation and close."
+      ],
+      "intervention_cues": [
+        {
+          "trigger": "run1_smiling",
+          "say": "Lock your axis. Project pure executive authority."
+        },
+        {
+          "trigger": "run2_rigid",
+          "say": "Soften the head axis. Tilt like you are listening to a good friend."
+        },
+        {
+          "trigger": "run3_permanent_tilt",
+          "say": "Return to centre on the period."
+        }
+      ]
+    },
+    {
+      "id": "2.3",
+      "stage": 2,
+      "name": "Micro-Stillness Isolation and Saccadic Stabilization",
+      "source": "documented",
+      "category": "spatial",
+      "provenance": {
+        "lineage": "Patrick Tucker (Secrets of Screen Acting); Michael Caine (Acting in Film)",
+        "document": "coach-manual 2.3 / curriculum 2.3"
+      },
+      "duration_s": 180,
+      "reps_target": 3,
+      "telemetry_gated": true,
+      "target_metrics": [
+        "gaze_fixation_ratio"
+      ],
+      "graduation": {
+        "torso_lateral_displacement_cm": {
+          "op": "<",
+          "value": 2.0
+        },
+        "eye_flash_clean_events": {
+          "op": ">=",
+          "value": 2
+        }
+      },
+      "coach_brief": "The lens magnifies movement. A slight sway of your hips or swivel of your chair turns into an earthquake on screen. Stillness communicates authority. To change thoughts without shifting your whole body we use Tucker's Eye Flash.",
+      "protocol": [
+        "Non-swivelling chair, feet flat, hips back against the chair base.",
+        "A bounding guide is drawn around head and shoulders.",
+        "Deliver a 2-minute topic with torso centroid anchored inside a 2cm margin.",
+        "On major topical shifts, stop physical motion, blink cleanly while dropping gaze downward for a fraction of a second, and snap focus back to the lens on the opening word of the new thought."
+      ],
+      "notes": "SOURCE CONFLICT: curriculum describes the Eye Flash as closing the eyes briefly; coach manual describes dropping gaze downward. Implemented per the coach manual as the operational document.",
+      "intervention_cues": [
+        {
+          "trigger": "sway_or_foot_tap",
+          "say": "Anchor your heels into the floor. Channel that energy into your vocal resonance."
+        },
+        {
+          "trigger": "head_rocks_with_syllables",
+          "say": "Still the neck. Let the words do the work."
+        }
+      ]
+    },
+    {
+      "id": "3.1",
+      "stage": 3,
+      "name": "The Melodic Staircase Vocal Workout",
+      "source": "documented",
+      "category": "prosody",
+      "provenance": {
+        "lineage": "Roger Love (Set Your Voice Free)",
+        "document": "coach-manual 3.1 / curriculum 3.1"
+      },
+      "duration_s": 300,
+      "reps_target": 3,
+      "telemetry_gated": true,
+      "target_metrics": [
+        "pitch_semitone_sd",
+        "terminal_pitch_slope"
+      ],
+      "graduation": {
+        "pitch_semitone_sd": {
+          "op": ">=",
+          "value": 2.8
+        },
+        "terminal_pitch_slope": {
+          "op": "<",
+          "value": 0
+        }
+      },
+      "coach_brief": "Speaking in a flat pitch puts the listener's brain into a passive state. Ending declarative sentences on an upward pitch sounds like you are asking permission. We use a melodic staircase: middle pitch for context, high for the key emphasis word, low to land the period with authority.",
+      "protocol": [
+        "Map three registers on a spoken 'Ah': Note 1 low chest, Note 2 conversational mid, Note 3 elevated emphasis.",
+        "Open each sentence on Note 2.",
+        "Step up to Note 3 on the primary noun or verb.",
+        "Step down firmly to Note 1 on the final word.",
+        "Three passes: exaggerated, subdued corporate, naturalized conversational."
+      ],
+      "intervention_cues": [
+        {
+          "trigger": "uptalk_detected",
+          "say": "You asked a question. Land on the basement note."
+        },
+        {
+          "trigger": "flat_delivery",
+          "say": "Staircase up on the key word. Give the brain a melodic reason to listen."
+        }
+      ]
+    },
+    {
+      "id": "3.2",
+      "stage": 3,
+      "name": "The Pasta-Sauce Rhetorical Condensation Drill",
+      "source": "documented",
+      "category": "message",
+      "provenance": {
+        "lineage": "Bill McGowan (Pitch Perfect); Brad Phillips (The Media Training Bible)",
+        "document": "coach-manual 3.2 / curriculum 3.2"
+      },
+      "duration_s": 360,
+      "reps_target": 3,
+      "telemetry_gated": true,
+      "target_metrics": [
+        "wpm"
+      ],
+      "graduation": {
+        "word_count_reduction": {
+          "op": ">=",
+          "value": 0.75
+        },
+        "wpm": {
+          "op": "between",
+          "value": [
+            130,
+            155
+          ]
+        }
+      },
+      "coach_brief": "Good communication is like making pasta sauce: the more you boil it down, the richer and more potent the flavour. We eliminate rambling by forcing your core idea through progressive time compression without speeding up your cadence.",
+      "protocol": [
+        "Round 1: answer a complex operational prompt unscripted in 60 seconds.",
+        "Extract the Headline — one declarative sentence carrying the conclusion. Strip backstory.",
+        "Round 2: deliver the same update in 30 seconds at the same pace.",
+        "Round 3: deliver it in 15 seconds as Headline plus one concrete metaphor or data point."
+      ],
+      "intervention_cues": [
+        {
+          "trigger": "speeding_to_beat_clock",
+          "say": "Do not speed up. Cut the words, not the pauses. Back to 140 and trim the fat."
+        },
+        {
+          "trigger": "conclusion_buried",
+          "say": "Put the conclusion in sentence one. Lead with your best headline."
+        }
+      ]
+    },
+    {
+      "id": "3.3",
+      "stage": 3,
+      "name": "The No-Tailgating Silent Cadence Drill",
+      "source": "documented",
+      "category": "message",
+      "provenance": {
+        "lineage": "Bill McGowan (Pitch Perfect)",
+        "document": "coach-manual 3.3 / curriculum 3.3"
+      },
+      "duration_s": 240,
+      "reps_target": 3,
+      "telemetry_gated": true,
+      "target_metrics": [
+        "filler_density"
+      ],
+      "graduation": {
+        "silence_ratio": {
+          "op": "between",
+          "value": [
+            0.15,
+            0.2
+          ]
+        },
+        "filler_density": {
+          "op": "<",
+          "value": 0.008
+        }
+      },
+      "coach_brief": "When you tailgate in a car you cause accidents. When your mouth tailgates your brain you cause verbal accidents. A confident speaker replaces verbal crutches with intentional silence. A pause communicates that you are comfortable holding the room.",
+      "protocol": [
+        "Read a 150-word script marked with / for a 1-second thought break and // for a 2-second structural pause.",
+        "At every slash: lips gently together, gaze steady on the lens, silent nasal breath.",
+        "Then remove the marks and place pauses independently before major nouns and transitions."
+      ],
+      "notes": "SOURCE VARIANCE: curriculum sets drill filler target <0.8%; the global benchmark elsewhere is <1.3%. The stricter 0.8% is used as this drill's graduation bar, 1.3% remains the system-wide threshold.",
+      "intervention_cues": [
+        {
+          "trigger": "filler_in_pause",
+          "say": "Close your lips. Hold the silence. Let the audience digest the idea."
+        },
+        {
+          "trigger": "gaze_breaks_in_pause",
+          "say": "Keep your eyes locked on the lens while you breathe."
+        }
+      ]
+    },
+    {
+      "id": "3.4",
+      "stage": 3,
+      "name": "Hedge-Word Ban",
+      "source": "original",
+      "category": "conviction",
+      "provenance": {
+        "lineage": "Camera Confidence conviction track",
+        "document": "original"
+      },
+      "duration_s": 30,
+      "reps_target": 8,
+      "telemetry_gated": true,
+      "target_metrics": [
+        "filler_density",
+        "terminal_pitch_slope"
+      ],
+      "graduation": {
+        "hedge_density": {
+          "op": "==",
+          "value": 0
+        },
+        "terminal_pitch_slope": {
+          "op": "<",
+          "value": 0
+        }
+      },
+      "coach_brief": "Filler words are a fluency problem. Hedging is a conviction problem. A smooth, um-free hedge still tells the viewer you do not believe yourself. State a take and hold it for thirty seconds.",
+      "protocol": [
+        "State a take. Hold it for 30 seconds.",
+        "Banned: 'kind of', 'I guess', 'maybe', 'I'm no expert but', 'does that make sense?'",
+        "If you run out of argument, restate the claim in different words."
+      ],
+      "intervention_cues": [
+        {
+          "trigger": "hedge_detected",
+          "say": "That was a hedge. Say the claim again with nothing in front of it."
+        },
+        {
+          "trigger": "seeks_approval",
+          "say": "You asked them to agree. Assert it and stop."
+        }
+      ]
+    },
+    {
+      "id": "4.1",
+      "stage": 4,
+      "name": "Saccadic Suppression and Perceptual Span Chunking",
+      "source": "documented",
+      "category": "teleprompter",
+      "provenance": {
+        "lineage": "NAB teleprompter standards; Patrick Tucker",
+        "document": "curriculum 4.1 (coach prompts authored — manual truncated)"
+      },
+      "duration_s": 300,
+      "reps_target": 3,
+      "telemetry_gated": true,
+      "target_metrics": [
+        "gaze_fixation_ratio"
+      ],
+      "graduation": {
+        "horizontal_eye_deviation_deg": {
+          "op": "<=",
+          "value": 1.2
+        },
+        "transcription_stumbles": {
+          "op": "==",
+          "value": 0
+        }
+      },
+      "setup": {
+        "column_width_chars": [
+          30,
+          45
+        ],
+        "chunking": "syntactic clauses",
+        "distance_ft": [
+          6,
+          8
+        ]
+      },
+      "coach_brief": "AUTHORED. Everyone can spot a person reading. The tell is not the voice, it is the eyes travelling left to right across the glass. We fix it by making the text narrow enough that you never have to travel — you take the whole phrase in one look, then give it to the lens from memory.",
+      "protocol": [
+        "Copy is formatted to a 30-45 character column beside the lens, broken at meaning units.",
+        "Fix your gaze on the centre of the column. Do not scan.",
+        "Absorb the thought group peripherally, anchor into the lens, then speak the phrase.",
+        "Read slightly ahead of speech — every phrase is delivered from short-term memory, never vocalized off the glass."
+      ],
+      "intervention_cues": [
+        {
+          "trigger": "horizontal_scanning",
+          "say": "AUTHORED. Stop travelling. Take the line in one look, then tell it to the lens."
+        },
+        {
+          "trigger": "word_by_word_reading",
+          "say": "AUTHORED. You are reading aloud. Get a phrase ahead and speak from memory."
+        },
+        {
+          "trigger": "stumble_on_chunk",
+          "say": "AUTHORED. That chunk is too long for one glance. Shorter groups."
+        }
+      ]
+    },
+    {
+      "id": "4.2",
+      "stage": 4,
+      "name": "The Three-Speed Metronomic Cadence Drill",
+      "source": "documented",
+      "category": "teleprompter",
+      "provenance": {
+        "lineage": "Broadcast news training; Jerry Weissman",
+        "document": "curriculum 4.2 (coach prompts authored — manual truncated)"
+      },
+      "duration_s": 360,
+      "reps_target": 3,
+      "telemetry_gated": true,
+      "target_metrics": [
+        "wpm"
+      ],
+      "graduation": {
+        "scroll_lead_s": {
+          "op": "between",
+          "value": [
+            0.5,
+            1.0
+          ]
+        },
+        "tempo_variance_wpm": {
+          "op": ">=",
+          "value": 20
+        }
+      },
+      "coach_brief": "AUTHORED. A prompter will drag you along at its own speed if you let it, and the result sounds like a hostage statement. You are going to lead it instead. Three passes, three speeds, so your voice learns it sets the tempo.",
+      "protocol": [
+        "Pass 1 Slow Drag at 110 WPM: sustain vowels, breathe deep, deliver with weight without breaking cadence.",
+        "Pass 2 Sprint at 170 WPM: crisp consonants, maintain clarity at speed.",
+        "Pass 3 Conversational Control at 140 WPM: slow for key concepts, accelerate through setups, lead the scroll."
+      ],
+      "intervention_cues": [
+        {
+          "trigger": "chasing_scroll",
+          "say": "AUTHORED. You are chasing it. Get ahead and make it follow you."
+        },
+        {
+          "trigger": "flat_tempo",
+          "say": "AUTHORED. Same speed throughout means no emphasis anywhere. Slow down on the thing that matters."
+        }
+      ]
+    },
+    {
+      "id": "4.3",
+      "stage": 4,
+      "name": "Cognitive Gaze Dissociation and Reflection Glances",
+      "source": "documented",
+      "category": "teleprompter",
+      "provenance": {
+        "lineage": "Patrick Tucker; broadcast interview protocol",
+        "document": "curriculum 4.3 (coach prompts authored — manual truncated)"
+      },
+      "duration_s": 240,
+      "reps_target": 3,
+      "telemetry_gated": true,
+      "target_metrics": [
+        "gaze_fixation_ratio"
+      ],
+      "graduation": {
+        "gaze_fixation_ratio": {
+          "op": "between",
+          "value": [
+            0.7,
+            0.85
+          ]
+        },
+        "reflection_glance_duration_s": {
+          "op": "between",
+          "value": [
+            1.0,
+            2.0
+          ]
+        }
+      },
+      "coach_brief": "AUTHORED. Unbroken eye contact past 95 percent does not read as confident, it reads as a hostage video. Real people look away when they think. We are going to put that back in deliberately, at the moments where thinking actually happens.",
+      "protocol": [
+        "Deliver a 2-minute script containing two marked cognitive reflection points.",
+        "At each, look slightly up and away from the lens for 1.5 seconds.",
+        "Speak the opening words of the clause while looking away, then return to the lens for the conclusion.",
+        "The glance must be smooth and purposeful — never a dart toward the desk or notes."
+      ],
+      "intervention_cues": [
+        {
+          "trigger": "unblinking_stare",
+          "say": "AUTHORED. Nobody thinks without looking away. Give me one glance on the transition."
+        },
+        {
+          "trigger": "darting_to_notes",
+          "say": "AUTHORED. That was a glance at your notes, not a thought. Up and away, then back."
+        }
+      ]
+    },
+    {
+      "id": "5.1",
+      "stage": 5,
+      "name": "The ABC Crisis Bridging Protocol",
+      "source": "documented",
+      "category": "crisis",
+      "provenance": {
+        "lineage": "Brad Phillips (The Media Training Bible); Bill McGowan (Draper Principle)",
+        "document": "curriculum 5.1 (coach prompts authored — manual truncated)"
+      },
+      "duration_s": 300,
+      "reps_target": 3,
+      "telemetry_gated": true,
+      "target_metrics": [
+        "pitch_semitone_sd",
+        "gaze_fixation_ratio"
+      ],
+      "graduation": {
+        "bridge_latency_s": {
+          "op": "<=",
+          "value": 8
+        },
+        "pitch_spike_ratio": {
+          "op": "<",
+          "value": 0.1
+        },
+        "negative_word_echoes": {
+          "op": "==",
+          "value": 0
+        }
+      },
+      "coach_brief": "AUTHORED. A hostile question is a gift with a trap in it. The trap is that repeating their framing makes it yours. Acknowledge in one sentence, bridge in one phrase, then land your own message. Three beats, eight seconds, no defensiveness.",
+      "protocol": [
+        "Receive a challenging audio-prompted question.",
+        "A — Acknowledge or answer the premise in one concise sentence, without repeating the negative words.",
+        "B — Bridge: 'What is critical to focus on is...' or 'The broader priority here is...'",
+        "C — Content: your core message supported by a story, statistic or sound bite.",
+        "Hold steady pitch, relaxed face and unbroken lens contact throughout."
+      ],
+      "intervention_cues": [
+        {
+          "trigger": "negative_echo",
+          "say": "AUTHORED. You just repeated their word. That word is now yours. Again, without it."
+        },
+        {
+          "trigger": "pitch_spike",
+          "say": "AUTHORED. Your pitch jumped — that reads as rattled. Same note as your opening."
+        },
+        {
+          "trigger": "leaning_back",
+          "say": "AUTHORED. You leaned away from it. Stay where you are."
+        }
+      ]
+    },
+    {
+      "id": "5.2",
+      "stage": 5,
+      "name": "Blunder Normalization and Nonchalance Recovery",
+      "source": "documented",
+      "category": "crisis",
+      "provenance": {
+        "lineage": "Live broadcast tradition; Flaming Nonsense Drill",
+        "document": "curriculum 5.2 (coach prompts authored — manual truncated)"
+      },
+      "duration_s": 240,
+      "reps_target": 3,
+      "telemetry_gated": true,
+      "target_metrics": [
+        "filler_density"
+      ],
+      "graduation": {
+        "facial_grimace_events": {
+          "op": "==",
+          "value": 0
+        },
+        "apology_phrases": {
+          "op": "==",
+          "value": 0
+        },
+        "recovery_pause_s": {
+          "op": "<=",
+          "value": 2.0
+        }
+      },
+      "coach_brief": "AUTHORED. The audience does not know what you meant to say. A stumble only becomes a mistake when your face announces it. We are going to break things on purpose until your face stops reporting them.",
+      "protocol": [
+        "Begin a prepared 2-minute presentation.",
+        "At an unannounced moment the system injects a fault: an audio tone, a prompter freeze, or a card requiring you to say an absurd phrase.",
+        "Never apologize. Never say sorry. Hold a composed expression.",
+        "Smile faintly, take a silent one-second breath, absorb the disruption, continue."
+      ],
+      "intervention_cues": [
+        {
+          "trigger": "apology_detected",
+          "say": "AUTHORED. You apologized for something nobody noticed. Again."
+        },
+        {
+          "trigger": "grimace_au4_au15",
+          "say": "AUTHORED. Your face told on you. The recovery is the performance."
+        },
+        {
+          "trigger": "long_recovery_pause",
+          "say": "AUTHORED. Too long a gap and the silence becomes the story. Two seconds maximum."
+        }
+      ]
+    },
+    {
+      "id": "5.3",
+      "stage": 5,
+      "name": "Accordion Structuring and Long-Form Energy Modulation",
+      "source": "documented",
+      "category": "crisis",
+      "provenance": {
+        "lineage": "Moxie Institute broadcast training",
+        "document": "curriculum 5.3 (coach prompts authored — manual truncated)"
+      },
+      "duration_s": 600,
+      "reps_target": 3,
+      "telemetry_gated": true,
+      "target_metrics": [
+        "wpm",
+        "pitch_semitone_sd"
+      ],
+      "graduation": {
+        "vocal_energy_decay": {
+          "op": "<",
+          "value": 0.1
+        },
+        "conclusion_timing_error_s": {
+          "op": "<=",
+          "value": 5
+        }
+      },
+      "coach_brief": "AUTHORED. Ten minutes in, most people are running on fumes and it is audible. Real broadcast stamina means your last minute sounds like your first, and that you can lose four minutes of material without the audience hearing the seam.",
+      "protocol": [
+        "Prepare a 10-minute presentation in three modules, each with an optional expandable case study.",
+        "Phase 1 open high: 150 WPM, broad pitch range, active TruthPlane gestures.",
+        "Phase 2 ground it: 125 WPM, lower pitch, micro-stillness, slight forward lean.",
+        "Phase 3 open close: 140 WPM, open palms, warm expression.",
+        "Midway the system calls 'conclude in 60 seconds'. Bypass the accordion sections, jump to the close, land on time without accelerating."
+      ],
+      "intervention_cues": [
+        {
+          "trigger": "vocal_decay",
+          "say": "AUTHORED. Your energy dropped two modules ago. Breath back into the belly."
+        },
+        {
+          "trigger": "accelerating_to_finish",
+          "say": "AUTHORED. Do not speed up to make the time. Drop material instead."
+        }
+      ]
+    }
+  ]
+}
