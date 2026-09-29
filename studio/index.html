@@ -83,6 +83,16 @@ textarea.script{width:100%;min-height:150px;padding:12px;border:1px solid var(--
 .prompter .roll{font-size:clamp(19px,3.3vw,26px);line-height:1.75;max-width:30ch;margin:0 auto;transition:transform .12s linear;font-weight:500}
 .prompter .cue{position:absolute;left:0;right:0;top:44%;height:2px;background:rgba(216,55,42,.35)}
 .prompter.idle .roll{opacity:.55}
+/* Peripheral by design: a border that breathes and four words low in the frame.
+   The documents are explicit that dense live indicators raise anxiety and
+   defeat the drill, so there is no live number anywhere on this surface. */
+.prompter.pulse{box-shadow:inset 0 0 0 3px var(--rec);animation:pulse 1.6s ease-out 2}
+@keyframes pulse{0%,100%{box-shadow:inset 0 0 0 0 rgba(216,55,42,0)}50%{box-shadow:inset 0 0 0 3px rgba(216,55,42,.85)}}
+.prompter.flash{animation:flash .5s ease-out 2}
+@keyframes flash{0%,100%{background-color:#0C0F14}50%{background-color:#1A1013}}
+.livecue{position:absolute;left:0;right:0;bottom:16px;text-align:center;font-family:var(--body);
+  font-size:15px;font-weight:600;color:#FFD9D4;opacity:0;transition:opacity .35s;pointer-events:none;letter-spacing:.01em}
+.livecue.on{opacity:1}
 
 .stats{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
 .stat{background:var(--sunk);border-radius:8px;padding:9px 12px;min-width:86px}
@@ -138,6 +148,7 @@ import { EfficacyModel, weakestMetric } from '../app/learning/efficacy.mjs';
 import { wordsPerMinute, fillerDensity, hedgeDensity, yinPitch, pitchSemitoneSD,
          terminalPitchSlope, rms, silenceProfile } from '../app/sensing/audio.mjs';
 import { buildPrompt } from '../server/generate.mjs';
+import { CueGovernor, RollingTelemetry, DEFAULTS as CUE_CFG } from '../app/coaching/live.mjs';
 
 const registry = await (await fetch('../registry/drills.json')).json();
 const $ = s => document.querySelector(s);
@@ -311,8 +322,9 @@ $('#copyScript').onclick = async () => {
 $('#v-practice').append(frag(`
 <div class="card">
   <h2>Practise it</h2>
-  <p class="sub">The prompter runs at the pace you set. Speak along with it. Pace is measured from the clock and your word count; with a microphone you also get pitch range, terminal contour and filler density from the real acoustic pipeline.</p>
-  <div class="prompter idle" id="prompter"><div class="cue"></div><div class="roll" id="roll">Write a script first.</div></div>
+  <p class="sub">The prompter runs at the pace you set. Speak along with it. With a microphone, VERA coaches <em>during</em> the take — a border that breathes and at most four words, low in the frame. Never a number: dense live indicators raise anxiety and defeat the drill. At most ${'' + CUE_CFG.budgetPerMin} cues a minute, one at a time, the one that matters most.</p>
+  <div class="prompter idle" id="prompter"><div class="cue"></div><div class="roll" id="roll">Write a script first.</div>
+    <div class="livecue" id="liveCue" aria-live="polite"></div></div>
   <div class="row" style="margin-top:12px">
     <label for="speed">prompter wpm</label>
     <input id="speed" type="range" min="90" max="200" step="5" value="140">
@@ -324,6 +336,7 @@ $('#v-practice').append(frag(`
     <span id="clock" style="font-family:var(--mono);font-size:15px;font-variant-numeric:tabular-nums"></span>
   </div>
   <div id="takeNote"></div>
+  <div id="cueReport" hidden></div>
   <div class="stats" id="takeStats"></div>
 </div>
 <div class="card" id="historyCard" hidden>
@@ -346,7 +359,9 @@ async function startTake() {
   const text = (scriptEl.value || '').trim();
   if (!text) { $('#takeNote').innerHTML = `<div class="note warn">Write a script first.</div>`; return; }
   $('#takeNote').innerHTML = '';
-  take = { t0: performance.now(), words: (text.match(/\S+/g)||[]).length, pitch: [], energy: [], transcript: '', mic: false };
+  take = { t0: performance.now(), words: (text.match(/\S+/g)||[]).length, pitch: [], energy: [], transcript: '', mic: false,
+           gov: new CueGovernor(), roll: new RollingTelemetry({ windowMs: 12000 }), cues: [], seenWords: 0 };
+  take.gov.reset(0);
   $('#prompter').classList.remove('idle');
   $('#recDot').classList.add('live');
   $('#startBtn').disabled = true; $('#endBtn').disabled = false;
@@ -382,7 +397,17 @@ async function startTake() {
       an.getFloatTimeDomainData(buf);
       const e = rms(buf);
       take.energy.push(e);
-      take.pitch.push(e > 0.01 ? yinPitch(buf, ctx.sampleRate) : null);
+      const hz = e > 0.01 ? yinPitch(buf, ctx.sampleRate) : null;
+      take.pitch.push(hz);
+
+      // same frames drive the live loop, over a rolling window rather than the
+      // whole take — a cumulative average hides a mid-take acceleration
+      const now = performance.now() - take.t0;
+      take.roll.pushAudio(now, e, hz);
+      const spokenNow = (take.transcript.match(/\S+/g) || []).length;
+      if (spokenNow > take.seenWords) { take.roll.pushWords(now, spokenNow - take.seenWords); take.seenWords = spokenNow; }
+      const cue = take.gov.tick(take.roll.metrics(now), now);
+      if (cue) showCue(cue);
     }, 20);
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SR) {
@@ -393,12 +418,26 @@ async function startTake() {
     }
   } catch {
     $('#micTag').textContent = 'no mic — pace only'; $('#micTag').classList.add('off');
-    $('#takeNote').innerHTML = `<div class="note warn">No microphone in this view, so only pace is measured. Everything else still runs.</div>`;
+    $('#takeNote').innerHTML = `<div class="note warn">No microphone in this view. Pace is still measured from the clock, but live coaching needs to hear you, so there will be no cues during this take.</div>`;
   }
+}
+
+let cueTimer = null;
+function showCue(cue) {
+  take.cues.push(cue);
+  const el = $('#liveCue'), pr = $('#prompter');
+  el.textContent = cue.say; el.classList.add('on');
+  pr.classList.remove('pulse','flash');
+  void pr.offsetWidth;                                  // restart the animation
+  pr.classList.add(cue.intensity === 'icon_flash' ? 'flash' : 'pulse');
+  clearTimeout(cueTimer);
+  cueTimer = setTimeout(() => { el.classList.remove('on'); pr.classList.remove('pulse','flash'); }, 2600);
 }
 
 function endTake() {
   if (!take) return;
+  clearTimeout(cueTimer); $('#liveCue').classList.remove('on');
+  $('#prompter').classList.remove('pulse','flash');
   clearInterval(take.scroll); clearInterval(take.audio);
   take.asr?.stop(); take.ctx?.close(); take.stream?.getTracks().forEach(t => t.stop());
   $('#recDot').classList.remove('live');
@@ -439,6 +478,17 @@ function endTake() {
   else if (!take.mic) $('#takeNote').innerHTML = `<div class="note warn">Pace measured from the clock. Pitch and fillers need a microphone.</div>`;
   else if (!spoken) $('#takeNote').innerHTML = `<div class="note warn">No transcript — this browser's speech recognition did not run, so filler density is unavailable. Pitch and pace are real.</div>`;
   else $('#takeNote').innerHTML = `<div class="note ok">Take recorded. Nothing left your device — only the numbers below were computed.</div>`;
+
+  const cues = take.cues;
+  if (cues.length) {
+    const counts = cues.reduce((a,c) => (a[c.id]=(a[c.id]||0)+1, a), {});
+    const held = [...new Set(cues.flatMap(c => c.suppressed))].filter(x => !counts[x]);
+    $('#cueReport').hidden = false;
+    $('#cueReport').innerHTML =
+      `<div class="note warn">In the take: ${Object.entries(counts).map(([k,n])=>`${k.replace(/_/g,' ')}${n>1?` ×${n}`:''}`).join(', ')}.` +
+      (held.length ? ` Also true but held back to keep it sparse: ${held.map(h=>h.replace(/_/g,' ')).join(', ')}.` : '') +
+      ` Budget is ${CUE_CFG.budgetPerMin} a minute.</div>`;
+  } else $('#cueReport').hidden = true;
 
   if (!tooShort) { state.takes.push({ at: Date.now(), score: r.score, wpm: t.wpm }); save(state); renderTakes(); }
   coachOn(t, r, w, hedges, spoken);

@@ -5,6 +5,7 @@ const suites = [
   { file: 'sensing.test.mjs', name: 'sensing fixtures' },
   { file: 'privacy.test.mjs', name: 'privacy invariant' },
   { file: 'tools.test.mjs',   name: 'tool schemas' },
+  { file: 'live.test.mjs',    name: 'live coaching' },
   { file: 'auth.test.mjs',    name: 'auth + platforms' },
   { file: 'generate.test.mjs',name: 'drill generation' },
   { file: 'research.test.mjs',name: 'technique research' },

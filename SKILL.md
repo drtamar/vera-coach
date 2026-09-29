@@ -48,8 +48,15 @@ into the TruthPlane."*
 4. **One adjustment at a time.** Three corrections produce zero corrections.
 5. **Celebrate composure specifically.** A stumble recovered without apology is the single
    most rewardable event in a session. Name it.
-6. **Live feedback stays sparse.** Dense on-screen indicators raise anxiety and defeat the
-   purpose. Border pulse past 165 WPM, arrow when hands leave frame. Nothing else.
+6. **Live feedback stays sparse — and sparseness is a mechanism, not an intention.**
+   Dense on-screen indicators raise anxiety and defeat the purpose. Four things enforce it:
+   a **sustain** window, so a threshold crossed for one frame is noise rather than a habit;
+   **hysteresis**, entering and leaving on different thresholds, without which a speaker
+   sitting at 165 WPM is never told at all because the sustain window keeps resetting; a
+   **cooldown** per rule plus a global minimum gap, because the same cue twice reads as
+   nagging and two different cues at once reads as failure; and a hard **budget** per minute,
+   so when several conditions are true the speaker gets the one that matters most. Plus a
+   settling period: nothing at all for the opening seconds. Never a number during a take.
 
 ## Telemetry benchmarks
 

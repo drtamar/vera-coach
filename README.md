@@ -126,6 +126,7 @@ app/learning/          effect estimation, Thompson selection, pruning
 server/tools.mjs       VERA's 8 tools + the schema gate on generated drills
 bin/connect.mjs        account connection: inspect, guide, verify
 sandbox/               local bench — real modules, mock model, no credentials
+app/coaching/live.mjs  in-take cue governor: sustain, hysteresis, cooldown, budget, priority
 server/auth.mjs        platform + credential selection, capability gating, diagnostics
 server/llm.mjs         Anthropic client, structured output, error classification, retry
 server/generate.mjs    tier-2 drill authoring: prompt, call, gate, one repair round-trip
@@ -214,7 +215,9 @@ The product UI, four sections:
 - **Write** — a chat with VERA that develops a script with you. It front-loads the point,
   cuts background, and bans hedges from what you'll say. Ask for the script and it hands one
   back between markers, which the page extracts and saves.
-- **Practice** — a teleprompter runs your script at the pace you set. Pace is measured from
+- **Practice** — a teleprompter runs your script at the pace you set, and with a microphone
+  VERA coaches *during* the take: a border that breathes and at most four words low in the
+  frame, never a number. Pace is measured from
   the clock and your word count; with a microphone you also get pitch range, terminal contour
   and filler density from the same `app/sensing/audio.mjs` the engine ships. Then the real
   `score()` and VERA's post-take feedback: one genuine positive, the telemetry in plain
@@ -230,6 +233,31 @@ measures pace and says which dimensions it could not read.
 
 The script lives in browser storage only — per viewer, not synced, not visible to anyone
 else. There is a Copy button because that is a real limitation, not a detail.
+
+## The live coach
+
+The source material is emphatic about how in-take feedback must feel — *"subtle, peripheral
+cues"*, *"excessive live indicators during a take can distract the user and increase
+anxiety"* — and gives the cue vocabulary and a threshold or two. It does not say how a
+threshold becomes a cue, and that gap is where this either works or turns into nagging.
+
+`app/coaching/live.mjs` is that mechanism. Four things do the restraint:
+
+| | |
+|---|---|
+| **Sustain** | A threshold crossed for one frame is noise. A rule holds its condition for its own window before it may speak. |
+| **Hysteresis** | Entering and leaving use different thresholds. Without it a speaker oscillating around 165 WPM is **never told at all** — the condition flips off on every dip and the sustain window keeps resetting. That is a missed cue, not a strobe, and the test proves it by running a single-threshold control that fires zero times. |
+| **Cooldown** | Per rule, plus a global minimum gap. The same cue twice reads as nagging; two different cues at once reads as failure. |
+| **Budget** | A hard ceiling per minute across every rule. When several conditions are true, the speaker gets the one that matters most — and the post-take report says what was held back. |
+
+Plus a settling period: nothing for the opening seconds, because the windows are not full and
+being corrected before you finish your first sentence is the worst possible start.
+
+Live metrics run over a **rolling window**, not the take so far. A speaker who opens at 120
+and accelerates to 190 still shows a cumulative 150 and would never be told.
+
+Priority is a judgement about the moment rather than the metric: a freeze outranks pace,
+because being told to slow down while you have stopped talking is useless.
 
 ## Sandbox
 
@@ -272,10 +300,10 @@ npm test            # all suites; the browser suite skips if playwright is absen
 npm i && npm test   # includes the on-ramp browser suite
 ```
 
-404 tests: scoring and learning (77), sensing against synthesized ground truth (65), the
-privacy invariant (32), tool schemas (21), auth and platform gating (51), drill generation
-(58), technique research (45), real-SDK integration (10), the sandbox in a real browser (24),
-on-ramp UI in a real browser (21).
+437 tests: scoring and learning (77), sensing against synthesized ground truth (65), the
+privacy invariant (33), tool schemas (21), the live cue governor (33), auth and platform
+gating (51), drill generation (58), technique research (45), real-SDK integration (10), the
+sandbox in a real browser (24), on-ramp UI in a real browser (21).
 
 The integration suite puts the actual SDK in the path and inspects what reaches the wire,
 because every other suite injects a fake client and therefore validates this project's
