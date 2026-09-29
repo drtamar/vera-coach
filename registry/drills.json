@@ -9,7 +9,11 @@
         0.8
       ],
       "deficient": "<0.45 evasive scanning",
-      "overcorrected": ">0.95 unblinking stare"
+      "overcorrected": ">0.95 unblinking stare",
+      "plausible": [
+        0,
+        1
+      ]
     },
     "blink_rate": {
       "unit": "per_min",
@@ -18,7 +22,11 @@
         22
       ],
       "deficient": ">38 acute stress flutter",
-      "overcorrected": "<6 visual freeze"
+      "overcorrected": "<6 visual freeze",
+      "plausible": [
+        0,
+        120
+      ]
     },
     "truth_plane_occupancy": {
       "unit": "ratio",
@@ -27,7 +35,11 @@
         0.4
       ],
       "deficient": "hands pinned or below frame",
-      "overcorrected": "flailing in upper facial quadrant"
+      "overcorrected": "flailing in upper facial quadrant",
+      "plausible": [
+        0,
+        1
+      ]
     },
     "head_tilt_angle": {
       "unit": "deg",
@@ -36,7 +48,11 @@
         12
       ],
       "deficient": "0 rigid vertical axis",
-      "overcorrected": ">15 permanent slouch"
+      "overcorrected": ">15 permanent slouch",
+      "plausible": [
+        0,
+        45
+      ]
     },
     "wpm": {
       "unit": "words_min",
@@ -45,7 +61,11 @@
         150
       ],
       "deficient": ">170 adrenalized rushing",
-      "overcorrected": "<105 cognitive stall"
+      "overcorrected": "<105 cognitive stall",
+      "plausible": [
+        0,
+        400
+      ]
     },
     "pitch_semitone_sd": {
       "unit": "semitones",
@@ -54,7 +74,11 @@
         6.0
       ],
       "deficient": "<1.2 monotone",
-      "overcorrected": "erratic theatrical indicating"
+      "overcorrected": "erratic theatrical indicating",
+      "plausible": [
+        0,
+        24
+      ]
     },
     "terminal_pitch_slope": {
       "unit": "dF0",
@@ -63,7 +87,11 @@
         0
       ],
       "deficient": "positive contour = uptalk",
-      "overcorrected": "harsh downward clipping"
+      "overcorrected": "harsh downward clipping",
+      "plausible": [
+        -24,
+        24
+      ]
     },
     "filler_density": {
       "unit": "ratio",
@@ -72,7 +100,11 @@
         0.013
       ],
       "deficient": ">0.045 verbal crutches",
-      "overcorrected": "0 with robotic pauses"
+      "overcorrected": "0 with robotic pauses",
+      "plausible": [
+        0,
+        1
+      ]
     }
   },
   "drills": [

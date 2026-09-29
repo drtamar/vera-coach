@@ -131,8 +131,15 @@ its `target_metrics` and its graduation predicate; if it does not, it is rejecte
 re-requested once with the specific failure quoted back, then abandoned. It enters with high
 uncertainty and is evaluated exactly like the documented drills.
 
-**Research beyond the manual.** Search out external technique, map it to the schema, record
-the source.
+**Research beyond the manual.** Search out external technique, adapt it to the schema, and
+record every source URL. A researched drill citing nothing is rejected.
+
+Retrieved pages are arbitrary text, so the boundary is enforced structurally rather than by
+trusting the model: search and authoring are separate calls, so retrieved text arrives as
+fenced data in a user message and never joins the instruction stream; the authoring call has
+no web access and a strict output schema; graduation bars are checked against each metric's
+plausible measurement range, which is what stops a poisoned source writing a bar everyone
+passes; and no URL may appear in text read aloud to a speaker.
 
 **The rule that makes this learning rather than accumulation:** generated and researched
 drills are pruned when they fail to earn their place. Documented and original drills are

@@ -6,6 +6,7 @@ const suites = [
   { file: 'privacy.test.mjs', name: 'privacy invariant' },
   { file: 'tools.test.mjs',   name: 'tool schemas' },
   { file: 'generate.test.mjs',name: 'drill generation' },
+  { file: 'research.test.mjs',name: 'technique research' },
   { file: 'onramp.test.mjs',  name: 'on-ramp browser', needs: 'playwright' },
 ];
 
