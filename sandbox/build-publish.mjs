@@ -33,7 +33,7 @@ export const RUNTIME_FILES = [
   'server/research.mjs',
   'registry/drills.json',
   // studio also drives the live acoustic pipeline
-  ...(PAGE === 'studio' ? ['app/sensing/audio.mjs', 'app/coaching/live.mjs'] : []),
+  ...(PAGE === 'studio' ? ['app/sensing/audio.mjs', 'app/coaching/live.mjs', 'app/coaching/session.mjs'] : []),
 ];
 
 await rm(OUT, { recursive: true, force: true });

@@ -127,6 +127,7 @@ server/tools.mjs       VERA's 8 tools + the schema gate on generated drills
 bin/connect.mjs        account connection: inspect, guide, verify
 sandbox/               local bench — real modules, mock model, no credentials
 app/coaching/live.mjs  in-take cue governor: sustain, hysteresis, cooldown, budget, priority
+app/coaching/session.mjs  drill sessions: bracketed measurement, graduation streaks, recommendation
 server/auth.mjs        platform + credential selection, capability gating, diagnostics
 server/llm.mjs         Anthropic client, structured output, error classification, retry
 server/generate.mjs    tier-2 drill authoring: prompt, call, gate, one repair round-trip
@@ -222,7 +223,9 @@ The product UI, four sections:
   and filler density from the same `app/sensing/audio.mjs` the engine ships. Then the real
   `score()` and VERA's post-take feedback: one genuine positive, the telemetry in plain
   language, exactly one thing to change.
-- **Drills** — the 21-drill curriculum.
+- **Drills** — the curriculum, runnable. A session is a short baseline, the drill, then a
+  second short take. The benchmark is checked against the post take and the before/after pair
+  goes to the learning model. Graduation needs it held across three consecutive sessions.
 - **Bench** — scoring sliders, the bandit simulation, and the live generation prompt.
 
 Published it needs the `sample` capability for the chat and the coaching. **Everything else
@@ -233,6 +236,25 @@ measures pace and says which dimensions it could not read.
 
 The script lives in browser storage only — per viewer, not synced, not visible to anyone
 else. There is a Copy button because that is a real limitation, not a detail.
+
+## Running a drill
+
+Every piece of this existed and nothing connected it: the registry knew each drill's
+graduation predicate, `score.mjs` could evaluate one, `efficacy.mjs` could learn from a
+before/after pair — and no drill was ever run, so `meetsGraduation` was never called on a
+real take and the learning layer's only inputs were simulations.
+
+A session is three measured phases: **baseline**, the **drill**, then **after**. The
+bracketing is not ceremony. The efficacy model needs a *within-session* pre/post pair — that
+is what lets day-to-day variance cancel instead of being credited to the drill. Measuring
+only afterwards would produce a number that looks like evidence and is not, and a run without
+a baseline says plainly that nothing was learned from it.
+
+Thirteen of the twenty-one drills run on a microphone alone. The other eight are gated on
+gaze, gesture placement or sway, and say so rather than letting you practise against a bar
+nothing is checking. Capability is assumed optimistically and downgraded on a real failure —
+starting pessimistic hid eight runnable drills from someone who had simply not been asked for
+a microphone yet.
 
 ## The live coach
 
@@ -300,10 +322,10 @@ npm test            # all suites; the browser suite skips if playwright is absen
 npm i && npm test   # includes the on-ramp browser suite
 ```
 
-437 tests: scoring and learning (77), sensing against synthesized ground truth (65), the
-privacy invariant (33), tool schemas (21), the live cue governor (33), auth and platform
-gating (51), drill generation (58), technique research (45), real-SDK integration (10), the
-sandbox in a real browser (24), on-ramp UI in a real browser (21).
+473 tests: scoring and learning (77), sensing against synthesized ground truth (65), the
+privacy invariant (34), tool schemas (21), the live cue governor (33), drill sessions (36),
+auth and platform gating (51), drill generation (58), technique research (45), real-SDK
+integration (10), the sandbox in a real browser (24), on-ramp UI in a real browser (21).
 
 The integration suite puts the actual SDK in the path and inspects what reaches the wire,
 because every other suite injects a fake client and therefore validates this project's

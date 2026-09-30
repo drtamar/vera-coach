@@ -149,6 +149,8 @@ import { wordsPerMinute, fillerDensity, hedgeDensity, yinPitch, pitchSemitoneSD,
          terminalPitchSlope, rms, silenceProfile } from '../app/sensing/audio.mjs';
 import { buildPrompt } from '../server/generate.mjs';
 import { CueGovernor, RollingTelemetry, DEFAULTS as CUE_CFG } from '../app/coaching/live.mjs';
+import { runnability, recordSession, recommend, stageProgress, BRACKET_S } from '../app/coaching/session.mjs';
+import { meetsGraduation, REQUIRED_CONSECUTIVE } from '../app/scoring/score.mjs';
 
 const registry = await (await fetch('../registry/drills.json')).json();
 const $ = s => document.querySelector(s);
@@ -159,7 +161,9 @@ const frag = h => { const t = document.createElement('template'); t.innerHTML = 
 const KEY = 'vera.studio.v1';
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
 const save = s => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {} };
-let state = Object.assign({ script:'', turns:[], takes:[] }, load());
+let state = Object.assign({ script:'', turns:[], takes:[], drills:{}, efficacy:{} }, load());
+const efficacy = new EfficacyModel(state.efficacy);
+const saveAll = () => { state.efficacy = efficacy.toJSON(); save(state); };
 
 /* ---------- VERA's standing instructions (a leading user turn — there is no system role) ---------- */
 const VERA_RULES = `You are VERA, an on-camera performance coach helping someone write a short script they will read to camera.
@@ -545,16 +549,201 @@ Give post-take feedback in exactly this order, as plain prose, no headings, unde
 /* ================= DRILLS ================= */
 $('#v-drills').append(frag(`
 <div class="card">
+  <h2>Run a drill</h2>
+  <p class="sub">A session is three measured parts: a short baseline, the drill, then a second short take. The bracketing is not ceremony — a before-and-after pair inside one sitting is what lets day-to-day variance cancel instead of being credited to the drill. Graduation needs the benchmark held across ${REQUIRED_CONSECUTIVE} consecutive sessions.</p>
+  <div id="stageBar" class="stats"></div>
+  <div id="recommend" style="margin-top:12px"></div>
+</div>
+<div class="card" id="runCard" hidden>
+  <h2 id="runName"></h2>
+  <p class="sub" id="runBrief"></p>
+  <ol id="runProtocol" style="font-size:13px;color:var(--ink2);padding-left:20px;margin-bottom:12px"></ol>
+  <div class="stats" id="phaseBar"></div>
+  <div class="bar" style="margin-top:12px">
+    <button class="btn go" id="phaseBtn">Start baseline</button>
+    <button class="btn quiet" id="abortBtn">Cancel</button>
+    <span id="phaseClock" style="font-family:var(--mono);font-size:15px;font-variant-numeric:tabular-nums"></span>
+  </div>
+  <div id="phaseNote"></div>
+  <div id="verdict"></div>
+</div>
+<div class="card">
   <h2>Curriculum</h2>
-  <p class="sub">${registry.drills.length} drills across six stages, from lens desensitization to crisis bridging. Graduation needs benchmarks held across three consecutive sessions, never one good take.</p>
+  <p class="sub">${registry.drills.length} drills across six stages. A drill whose benchmark this device cannot measure says so rather than letting you practise against a bar nothing is checking.</p>
   <div id="drillList"></div>
 </div>`));
-$('#drillList').innerHTML = registry.drills.map(d => `
-  <div class="drill">
-    <h3>${esc(d.name)}<span class="pill ${d.source==='documented'?'doc':'orig'}">${d.source}</span></h3>
-    <div class="m">stage ${d.stage} · ${d.duration_s}s · ×${d.reps_target} · ${d.category}</div>
-    <p>${esc(d.coach_brief.replace(/^AUTHORED\.\s*/,''))}</p>
-  </div>`).join('');
+
+/* Optimistic about the microphone, pessimistic about the camera.
+   Nearly every device has a mic; whether permission is granted is only knowable
+   by asking. Starting at false hid eight runnable drills from someone who had
+   simply not been asked yet. It downgrades on a real failure instead. */
+let audioOk = true;
+const caps = () => ({ audio: audioOk, vision: false });
+
+function renderStages() {
+  $('#stageBar').innerHTML = stageProgress(registry.drills, state.drills).map(s => `
+    <div class="stat"><div class="k">stage ${s.stage}</div>
+    <div class="n" style="font-size:15px;color:${s.done===s.total?'var(--go)':'var(--ink)'}">${s.done}/${s.total}</div></div>`).join('');
+  const w = weakestMetric(lastTelemetry || {}, TARGETS);
+  const rec = recommend({ drills: registry.drills, store: state.drills, efficacy, weakest: w?.metric, caps: caps() });
+  $('#recommend').innerHTML = rec
+    ? `<div class="note ok">Next: <strong>${esc(rec.drill.name)}</strong> — ${esc(rec.why)}. <button class="btn go" data-run="${rec.drill.id}" style="margin-left:8px">Run it</button></div>`
+    : `<div class="note warn">Nothing runnable without a microphone. Allow one and reopen this tab.</div>`;
+}
+let lastTelemetry = null;
+
+function renderDrillList() {
+  $('#drillList').innerHTML = registry.drills.map(d => {
+    const r = runnability(d, caps());
+    const rec = state.drills[d.id];
+    const streak = rec?.streak ?? 0;
+    const grad = streak >= REQUIRED_CONSECUTIVE;
+    const dots = d.telemetry_gated
+      ? Array.from({length:REQUIRED_CONSECUTIVE},(_,i)=>`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:3px;background:${i<streak?'var(--go)':'var(--sunk)'};border:1px solid var(--line)"></span>`).join('')
+      : '';
+    return `<div class="drill">
+      <h3>${esc(d.name)}<span class="pill ${d.source==='documented'?'doc':'orig'}">${d.source}</span>${grad?'<span class="pill doc">graduated</span>':''}</h3>
+      <div class="m">stage ${d.stage} · ${d.duration_s}s · ${d.category} ${dots ? '· ' + dots : ''} ${rec?.reps ? `· ${rec.reps} run${rec.reps>1?'s':''}` : ''}</div>
+      <p>${esc(d.coach_brief.replace(/^AUTHORED\.\s*/,''))}</p>
+      ${r.runnable
+        ? `<button class="btn" data-run="${d.id}" style="margin-top:8px">Run</button>`
+        : `<div class="note warn" style="margin-top:8px">Needs the camera — this device cannot measure ${esc(r.missing.join(', '))}.</div>`}
+    </div>`;
+  }).join('');
+}
+
+/* ---- the session state machine ---- */
+let run = null;
+const PHASE_LABEL = { baseline:'Baseline', drill:'The drill', post:'After' };
+
+document.getElementById('v-drills').addEventListener('click', e => {
+  const id = e.target.dataset?.run; if (!id) return;
+  startRun(registry.drills.find(d => d.id === id));
+});
+
+function startRun(drill) {
+  run = { drill, phase:'idle', pre:null, post:null };
+  $('#runCard').hidden = false;
+  $('#runName').textContent = drill.name;
+  $('#runBrief').textContent = drill.coach_brief.replace(/^AUTHORED\.\s*/,'');
+  $('#runProtocol').innerHTML = drill.protocol.map(x => `<li>${esc(x)}</li>`).join('');
+  $('#verdict').innerHTML = ''; $('#phaseNote').innerHTML = '';
+  $('#phaseBtn').disabled = false; $('#phaseBtn').textContent = `Start baseline (${BRACKET_S}s)`;
+  renderPhaseBar();
+  $('#runCard').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+function renderPhaseBar() {
+  const order = ['baseline','drill','post'];
+  $('#phaseBar').innerHTML = order.map(ph => {
+    const done = order.indexOf(ph) < order.indexOf(run.phase) || run.phase === 'done';
+    const now = run.phase === ph;
+    return `<div class="stat" style="${now?'outline:2px solid var(--rec)':''}">
+      <div class="k">${PHASE_LABEL[ph]}</div>
+      <div class="n" style="font-size:14px;color:${done?'var(--go)':now?'var(--rec)':'var(--ink3)'}">${done?'done':now?'now':'—'}</div></div>`;
+  }).join('');
+}
+
+$('#abortBtn').onclick = () => { stopPhase(); run = null; $('#runCard').hidden = true; };
+$('#phaseBtn').onclick = async () => {
+  if (!run) return;
+  const next = run.phase === 'idle' ? 'baseline' : run.phase === 'baseline' ? 'drill' : 'post';
+  run.phase = next; renderPhaseBar();
+  $('#phaseBtn').disabled = true;
+  const secs = next === 'drill' ? run.drill.duration_s : BRACKET_S;
+  $('#phaseNote').innerHTML = next === 'drill'
+    ? `<div class="note ok">Run the drill as written. ${run.drill.intervention_cues?.[0] ? 'If you slip: ' + esc(run.drill.intervention_cues[0].say) : ''}</div>`
+    : `<div class="note ok">Speak freely for ${secs} seconds — this is the measurement, not the drill.</div>`;
+
+  const telemetry = await measurePhase(secs);
+  if (!run) return;                                   // cancelled mid-phase
+  if (next === 'baseline') run.pre = telemetry;
+  if (next === 'post') run.post = telemetry;
+  lastTelemetry = telemetry;
+
+  $('#phaseBtn').disabled = false;
+  if (next === 'post') { finishRun(); }
+  else { $('#phaseBtn').textContent = next === 'baseline' ? `Start the drill (${run.drill.duration_s}s)` : `Measure after (${BRACKET_S}s)`; }
+};
+
+function finishRun() {
+  run.phase = 'done'; renderPhaseBar();
+  const out = recordSession(state.drills, run.drill, { pre: run.pre, post: run.post, efficacy });
+  saveAll();
+  const rows = out.checks.map(c => `<div style="font-family:var(--mono);font-size:12px;padding:2px 0">
+    <span class="pill ${c.pass?'doc':'orig'}" style="margin:0 6px 0 0">${c.pass?'pass':'miss'}</span>${esc(c.metric)}
+    ${Number.isFinite(c.value)?`= ${c.value.toFixed(3)}`:'not measured'}
+    ${c.rule?`· needs ${c.rule.op} ${JSON.stringify(c.rule.value)}`:''}</div>`).join('');
+  $('#verdict').innerHTML =
+    `<div class="note ${out.passed?'ok':'warn'}" style="margin-top:12px">
+       ${out.passed ? 'Benchmark met.' : 'Not this time.'}
+       Streak ${out.streak} of ${out.needed}${out.justGraduated?' — graduated.':'.'}
+     </div>${rows}` +
+    (out.learned
+      ? `<div class="note ok" style="margin-top:8px">Learned: ${out.observations.map(o=>`${esc(o.metric)} moved ${o.improvement>0?'+':''}${o.improvement.toFixed(2)} band-widths`).join(', ')}. That went into the model that picks your next drill.</div>`
+      : `<div class="note warn" style="margin-top:8px">No before/after pair, so nothing was learned from this run — only the benchmark was checked.</div>`);
+  $('#phaseBtn').disabled = true; $('#phaseBtn').textContent = 'Done';
+  renderStages(); renderDrillList();
+}
+
+/** One measured take. Reuses the same acoustic pipeline as script practice. */
+let phaseState = null;
+function stopPhase() {
+  if (!phaseState) return;
+  clearInterval(phaseState.audio); clearInterval(phaseState.tick);
+  phaseState.asr?.stop(); phaseState.ctx?.close(); phaseState.stream?.getTracks().forEach(t=>t.stop());
+  $('#recDot').classList.remove('live'); $('#phaseClock').textContent = '';
+  phaseState = null;
+}
+async function measurePhase(secs) {
+  const st = { t0: performance.now(), pitch: [], energy: [], transcript: '' };
+  phaseState = st;
+  $('#recDot').classList.add('live');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:false, autoGainControl:false } });
+    st.stream = stream; audioOk = true;
+    $('#micTag').textContent = 'mic live'; $('#micTag').classList.remove('off');
+    const ctx = new (window.AudioContext||window.webkitAudioContext)(); st.ctx = ctx;
+    const an = ctx.createAnalyser(); an.fftSize = 2048;
+    ctx.createMediaStreamSource(stream).connect(an);
+    const buf = new Float32Array(an.fftSize);
+    st.audio = setInterval(() => {
+      an.getFloatTimeDomainData(buf);
+      const e = rms(buf); st.energy.push(e);
+      st.pitch.push(e > 0.01 ? yinPitch(buf, ctx.sampleRate) : null);
+    }, 20);
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SR) { const r = new SR(); r.continuous=true; r.interimResults=false; r.lang='en-US';
+      r.onresult = ev => { for (let i=ev.resultIndex;i<ev.results.length;i++) st.transcript += ' ' + ev.results[i][0].transcript; };
+      r.onerror = () => {}; try { r.start(); st.asr = r; } catch {} }
+  } catch {
+    // now we know, rather than assumed — tell the list so it stops offering
+    // drills whose benchmark nothing can check
+    audioOk = false;
+    $('#micTag').textContent = 'no mic'; $('#micTag').classList.add('off');
+    renderStages(); renderDrillList();
+  }
+  await new Promise(resolve => {
+    st.tick = setInterval(() => {
+      const left = secs - (performance.now() - st.t0)/1000;
+      $('#phaseClock').textContent = left > 0 ? `${Math.ceil(left)}s` : '';
+      if (left <= 0) { resolve(); }
+    }, 100);
+  });
+  const dur = (performance.now() - st.t0)/1000;
+  const spoken = st.transcript.trim();
+  stopPhase();
+  return {
+    wpm: spoken ? wordsPerMinute(spoken, dur) : null,
+    filler_density: spoken ? fillerDensity(spoken) : null,
+    hedge_density: spoken ? hedgeDensity(spoken) : null,
+    pitch_semitone_sd: st.pitch.length ? pitchSemitoneSD(st.pitch) : null,
+    terminal_pitch_slope: st.pitch.length ? terminalPitchSlope(st.pitch, 20) : null,
+    silence_ratio: st.energy.length ? silenceProfile(st.energy, 20).silence_ratio : null,
+    duration_s: dur,
+  };
+}
+
+renderStages(); renderDrillList();
 
 /* ================= BENCH ================= */
 const SL = { gaze_fixation_ratio:[0,1,.01,.72], wpm:[60,240,1,140], pitch_semitone_sd:[0,10,.1,3.1],
