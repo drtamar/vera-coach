@@ -72,7 +72,36 @@ Built, tested against fakes, never once exercised for real:
       synthetic ticks and the render path is tested directly, but the full
       audio → rolling window → governor → UI path has never run on actual speech.
 
-## 6. Product gaps
+## 6. Found by auditing this list — things it missed
+
+The first pass was written by the person who built the thing, so it catalogued known gaps and
+skipped whole categories. These came out of a second pass.
+
+- [x] ~~**A suspended audio context scored as perfect silence.**~~ Fixed. A context the browser
+      had suspended read zero energy forever, which is not an error — it is flawless silence,
+      a wrong answer delivered confidently. Now resumed up front, watched for mid-take
+      suspension, and a dead phase is declared void and offered again rather than scored.
+- [ ] **The transcript path is Chromium-only.** Web Speech runs in Chrome and Edge. In Safari
+      or Firefox there is no transcript, so `wpm`, `filler_density` and `hedge_density` are
+      never produced — which silently removes **4 of the 8 runnable drills** (1.3, 3.2, 3.3,
+      3.4). Nothing tells the user why. Either detect it and say so, or ship a WASM recogniser.
+- [ ] **Accessibility is thin across all three pages.** One `aria-live` in the studio, none in
+      the sandbox, no focus management anywhere, no `aria-label` on any control. The on-ramp
+      got a focus trap early; nothing since has had the same pass.
+- [ ] **A reload mid-session loses the baseline.** The drill record is only written in
+      `finishRun()`, so refreshing between the baseline and the drill discards the measurement
+      the whole bracketing exists to capture.
+- [ ] **Nothing enforces stage order.** `recommend()` prefers low stages and `stageProgress()`
+      reports them, but no drill is ever *blocked*. The documents are explicit that behavioural
+      change must become habit before the next layer lands. Moot today — no Stage 4–5 drill is
+      runnable — and live the moment §2 is done.
+- [ ] **No first-run experience.** This was scoped as a product for other people. There is no
+      onboarding, no explanation of the bracketing, no account.
+
+**Checked and genuinely fine**, so they are not on the list: the audio loop costs 1.47ms per
+frame, 7% of its 20ms tick, so main-thread DSP needs no worklet.
+
+## 7. Product gaps
 
 - [ ] **Nothing survives a cleared cache.** Scripts, drill history, graduation streaks and the
       efficacy model are all `localStorage`. No export, no sync, no account.
@@ -83,7 +112,7 @@ Built, tested against fakes, never once exercised for real:
 - [ ] **No session history across drills** — per-drill streaks exist; there is no view of
       practice over time.
 
-## 7. Honesty debts, already recorded
+## 8. Honesty debts, already recorded
 
 In `docs/PROVENANCE.md`, repeated here so they are not lost:
 
@@ -94,7 +123,7 @@ In `docs/PROVENANCE.md`, repeated here so they are not lost:
 - [ ] **Three source conflicts were resolved unilaterally** in favour of the operational
       document — hands-below-frame tolerance, the Eye Flash mechanic, the No-Tailgating bar.
 
-## 8. Before anyone else uses it
+## 9. Before anyone else uses it
 
 - [ ] **`allowedDomains` is unset for research.** Right for discovery, wrong for a product.
 - [ ] **No consent flow or data statement.** Face landmarking engages biometric handling under

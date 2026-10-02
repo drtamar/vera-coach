@@ -393,6 +393,8 @@ async function startTake() {
     take.stream = stream; take.mic = true;
     $('#micTag').textContent = 'mic live'; $('#micTag').classList.remove('off');
     const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    if (ctx.state === 'suspended') { try { await ctx.resume(); } catch {} }
+    ctx.onstatechange = () => { if (ctx.state === 'suspended') take.suspended = true; };
     const an = ctx.createAnalyser(); an.fftSize = 2048;
     ctx.createMediaStreamSource(stream).connect(an);
     const buf = new Float32Array(an.fftSize);
@@ -661,6 +663,12 @@ $('#phaseBtn').onclick = async () => {
 
   const telemetry = await measurePhase(secs);
   if (!run) return;                                   // cancelled mid-phase
+  if (telemetry === null) {                           // void phase — repeat it, do not score it
+    run.phase = next === 'baseline' ? 'idle' : next === 'drill' ? 'baseline' : 'drill';
+    renderPhaseBar(); $('#phaseBtn').disabled = false;
+    $('#phaseBtn').textContent = `Retry ${PHASE_LABEL[next].toLowerCase()}`;
+    return;
+  }
   if (next === 'baseline') run.pre = telemetry;
   if (next === 'post') run.post = telemetry;
   lastTelemetry = telemetry;
@@ -708,6 +716,12 @@ async function measurePhase(secs) {
     st.stream = stream; audioOk = true;
     $('#micTag').textContent = 'mic live'; $('#micTag').classList.remove('off');
     const ctx = new (window.AudioContext||window.webkitAudioContext)(); st.ctx = ctx;
+    // A suspended context reads zero energy forever, which scores as flawless
+    // silence rather than erroring — a wrong answer delivered confidently.
+    // Autoplay policy varies by browser, and backgrounding a tab can suspend
+    // mid-take, so resume up front and notice if it happens anyway.
+    if (ctx.state === 'suspended') { try { await ctx.resume(); } catch {} }
+    ctx.onstatechange = () => { if (ctx.state === 'suspended') st.suspended = true; };
     const an = ctx.createAnalyser(); an.fftSize = 2048;
     ctx.createMediaStreamSource(stream).connect(an);
     const buf = new Float32Array(an.fftSize);
@@ -736,7 +750,12 @@ async function measurePhase(secs) {
   });
   const dur = (performance.now() - st.t0)/1000;
   const spoken = st.transcript.trim();
+  const dead = st.suspended || (st.energy.length > 20 && st.energy.every(e => e < 0.0005));
   stopPhase();
+  if (dead) {
+    $('#phaseNote').innerHTML = `<div class="note bad">The audio stream went silent for that phase — the browser suspended it, or nothing reached the microphone. Measuring it would be inventing numbers, so this phase is void. Run it again.</div>`;
+    return null;
+  }
   return {
     wpm: spoken ? wordsPerMinute(spoken, dur) : null,
     filler_density: spoken ? fillerDensity(spoken) : null,
