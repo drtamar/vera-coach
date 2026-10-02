@@ -11,16 +11,24 @@ const byId = id => registry.drills.find(d => d.id === id);
 
 /* ---------- runnability is reported, not hidden ---------- */
 {
-  const audioOnly = { audio: true, vision: false };
-  t('runnability: an ungated drill always runs', runnability(byId('1.4'), { audio:false, vision:false }).runnable);
+  // what the studio's measurePhase() actually returns
+  const audioOnly = { produced: new Set(['wpm','filler_density','hedge_density',
+    'pitch_semitone_sd','terminal_pitch_slope','silence_ratio','duration_s']) };
+  t('runnability: an ungated drill always runs', runnability(byId('1.4'), { produced:new Set() }).runnable);
   t('runnability: an audio-gated drill runs with a mic', runnability(byId('3.3'), audioOnly).runnable);
   const gaze = runnability(byId('1.1'), audioOnly);
   t('runnability: a gaze-gated drill does not run without a camera', !gaze.runnable);
   t('runnability: and names what is missing', gaze.missing.includes('gaze_fixation_ratio'), JSON.stringify(gaze.missing));
-  t('runnability: with a camera it does run', runnability(byId('1.1'), { audio:true, vision:true }).runnable);
+  t('runnability: it runs once those metrics are produced',
+    runnability(byId('1.1'), { produced:new Set(['gaze_fixation_ratio','blink_rate','head_yaw_deviation_deg']) }).runnable);
   const counts = registry.drills.map(d => runnability(d, audioOnly).runnable);
-  t('runnability: 13 of 21 drills run on audio alone', counts.filter(Boolean).length === 13,
-    `${counts.filter(Boolean).length}`);
+  t('runnability: 8 drills are genuinely runnable from what we measure',
+    counts.filter(Boolean).length === 8, `${counts.filter(Boolean).length}`);
+  // the bug this replaced: offered, but the benchmark was never computed
+  t('runnability: a drill whose bar is never measured is NOT offered',
+    !runnability(byId('1.3'), audioOnly).runnable, 'Yap Protocol needs speech_onset_latency_s');
+  t('runnability: and names exactly which metric is missing',
+    runnability(byId('1.3'), audioOnly).missing.includes('speech_onset_latency_s'));
 }
 
 /* ---------- graduation needs three CONSECUTIVE sessions ---------- */
@@ -87,7 +95,8 @@ const byId = id => registry.drills.find(d => d.id === id);
 
 /* ---------- recommendation ---------- */
 {
-  const caps = { audio: true, vision: false };
+  const caps = { produced: new Set(['wpm','filler_density','hedge_density','pitch_semitone_sd',
+    'terminal_pitch_slope','silence_ratio','duration_s']) };
   const eff = new EfficacyModel();
   const r = recommend({ drills: registry.drills, store: {}, efficacy: eff, weakest: null, caps });
   t('recommend: with no evidence it follows the curriculum', r.why.includes('curriculum'));

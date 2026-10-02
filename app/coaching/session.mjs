@@ -34,16 +34,23 @@ export const AUDIO_METRICS = new Set([
 ]);
 
 /**
- * Can this drill be run with what the device actually offers?
+ * Can this drill be run with what the device actually MEASURES?
  *
  * Reported per drill rather than hidden, because "run this drill" and "we cannot
- * tell whether you passed it" are different states and collapsing them would let
+ * tell whether you passed it" are different states and collapsing them lets
  * someone practise against a bar nothing is checking.
+ *
+ * `produced` is the set of metrics the caller's measurement code genuinely
+ * returns — not the set that is derivable in principle. An earlier version
+ * tested derivability, which offered five drills whose benchmarks nothing
+ * computed: the predicate saw `undefined`, reported "not measured", and the
+ * drill could never be passed however many times it was run. Pass what you
+ * actually produce.
  */
-export function runnability(drill, { audio = true, vision = false } = {}) {
+export function runnability(drill, { produced = AUDIO_METRICS } = {}) {
   if (!drill.telemetry_gated) return { runnable: true, gated: false, missing: [] };
   const bars = Object.keys(drill.graduation || {});
-  const missing = bars.filter(m => !(AUDIO_METRICS.has(m) ? audio : vision));
+  const missing = bars.filter(m => !produced.has(m));
   return { runnable: missing.length === 0, gated: true, missing };
 }
 

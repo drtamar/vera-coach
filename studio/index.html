@@ -578,7 +578,12 @@ $('#v-drills').append(frag(`
    by asking. Starting at false hid eight runnable drills from someone who had
    simply not been asked yet. It downgrades on a real failure instead. */
 let audioOk = true;
-const caps = () => ({ audio: audioOk, vision: false });
+/* Exactly what measurePhase() returns below — not what is derivable in theory.
+   A drill whose benchmark we never compute would fail forever with "not
+   measured", so it must not be offered at all. */
+const MEASURED = new Set(['wpm','filler_density','hedge_density','pitch_semitone_sd',
+                          'terminal_pitch_slope','silence_ratio','duration_s']);
+const caps = () => ({ produced: audioOk ? MEASURED : new Set() });
 
 function renderStages() {
   $('#stageBar').innerHTML = stageProgress(registry.drills, state.drills).map(s => `
