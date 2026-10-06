@@ -24,6 +24,7 @@ git clone https://github.com/drtamar/vera-coach && cd vera-coach
 git checkout -b grok/<topic> origin/main
 ```
 Tell it to read `AGENTS.md` and this file first, and to start in plan mode.
+A ready-to-paste brief for the first task is in `docs/prompts/grok-build-audio-metrics.md`.
 
 ## Suggested split (minimises merge conflicts)
 | Owner | Work | Files it touches |
