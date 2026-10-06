@@ -81,6 +81,16 @@ skipped whole categories. These came out of a second pass.
       had suspended read zero energy forever, which is not an error — it is flawless silence,
       a wrong answer delivered confidently. Now resumed up front, watched for mid-take
       suspension, and a dead phase is declared void and offered again rather than scored.
+- [x] ~~**Nothing could be read aloud.**~~ Done. Every explanatory block, drill briefing and
+      review now carries a speaker button, using the browser's own speech engine — no API, no
+      key, works when model access is declined. Buttons appear only when a voice actually
+      exists, because `speechSynthesis` can be present with an empty voice list and every
+      button would be dead.
+- [ ] **Grok cannot be reached from a published page.** A consumer subscription authenticates
+      a person in that vendor's own app; there is no mechanism for a third-party page to act
+      as it. The only programmatic route is the xAI API with a key, which is a different
+      product and was explicitly ruled out. What *is* portable — the personality and the
+      voice — is built. If the provider itself matters, it needs a backend you host.
 - [ ] **The transcript path is Chromium-only.** Web Speech runs in Chrome and Edge. In Safari
       or Firefox there is no transcript, so `wpm`, `filler_density` and `hedge_density` are
       never produced — which silently removes **4 of the 8 runnable drills** (1.3, 3.2, 3.3,

@@ -7,6 +7,7 @@ const suites = [
   { file: 'tools.test.mjs',   name: 'tool schemas' },
   { file: 'live.test.mjs',    name: 'live coaching' },
   { file: 'session.test.mjs', name: 'drill sessions' },
+  { file: 'voice.test.mjs',   name: 'voice + personas' },
   { file: 'auth.test.mjs',    name: 'auth + platforms' },
   { file: 'generate.test.mjs',name: 'drill generation' },
   { file: 'research.test.mjs',name: 'technique research' },

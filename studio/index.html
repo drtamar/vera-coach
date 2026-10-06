@@ -94,6 +94,17 @@ textarea.script{width:100%;min-height:150px;padding:12px;border:1px solid var(--
   font-size:15px;font-weight:600;color:#FFD9D4;opacity:0;transition:opacity .35s;pointer-events:none;letter-spacing:.01em}
 .livecue.on{opacity:1}
 
+/* A button, never autoplay. Audio that starts by itself is hostile, and someone
+   practising being on camera does not need a second voice arriving unasked. */
+.spk{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
+  border-radius:6px;background:var(--sunk);border:1px solid var(--line);vertical-align:middle;
+  margin-left:6px;flex:none;color:var(--ink2);transition:background .15s}
+.spk:hover{background:var(--surface);color:var(--ink)}
+.spk[aria-pressed="true"]{background:var(--rec);color:#fff;border-color:transparent}
+.spk svg{width:13px;height:13px}
+.spk-row{display:flex;align-items:flex-start;gap:0}
+.spk-row > :first-child{flex:1;min-width:0}
+
 .stats{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
 .stat{background:var(--sunk);border-radius:8px;padding:9px 12px;min-width:86px}
 .stat .k{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);font-weight:700}
@@ -150,6 +161,8 @@ import { wordsPerMinute, fillerDensity, hedgeDensity, yinPitch, pitchSemitoneSD,
 import { buildPrompt } from '../server/generate.mjs';
 import { CueGovernor, RollingTelemetry, DEFAULTS as CUE_CFG } from '../app/coaching/live.mjs';
 import { runnability, recordSession, recommend, stageProgress, BRACKET_S } from '../app/coaching/session.mjs';
+import { speak, stop as stopSpeech, voices, pickVoice, isAvailable as ttsAvailable } from '../app/voice/speak.mjs';
+import { PERSONAS, byId as personaById, compose, reviewPrompt, DEFAULT_ID } from '../app/coaching/persona.mjs';
 import { meetsGraduation, REQUIRED_CONSECUTIVE } from '../app/scoring/score.mjs';
 
 const registry = await (await fetch('../registry/drills.json')).json();
@@ -161,12 +174,62 @@ const frag = h => { const t = document.createElement('template'); t.innerHTML = 
 const KEY = 'vera.studio.v1';
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
 const save = s => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {} };
-let state = Object.assign({ script:'', turns:[], takes:[], drills:{}, efficacy:{} }, load());
+let state = Object.assign({ script:'', turns:[], takes:[], drills:{}, efficacy:{},
+                            persona: DEFAULT_ID, customPersona:'', voiceName:'', rate:1 }, load());
 const efficacy = new EfficacyModel(state.efficacy);
 const saveAll = () => { state.efficacy = efficacy.toJSON(); save(state); };
 
+/* ---------- read aloud ---------- */
+const SPK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a9 9 0 0 1 0 14"/></svg>';
+let chosenVoice = null, speakingBtn = null;
+/* The API existing is not the same as a voice existing. A browser can expose
+   speechSynthesis and have an empty voice list, where every button would be
+   dead on arrival — so nothing is wired until a voice is actually there. */
+let ttsReady = false;
+
+function speakerFor(getText) {
+  const b = document.createElement('button');
+  b.className = 'spk'; b.type = 'button';
+  b.setAttribute('aria-label', 'Read this aloud');
+  b.setAttribute('aria-pressed', 'false');
+  b.innerHTML = SPK;
+  b.onclick = async () => {
+    if (b.getAttribute('aria-pressed') === 'true') { stopSpeech(); clearSpeaking(); return; }
+    clearSpeaking();
+    speakingBtn = b; b.setAttribute('aria-pressed','true'); b.setAttribute('aria-label','Stop reading');
+    await speak(getText(), { voice: chosenVoice, rate: Number(state.rate) || 1 });
+    if (speakingBtn === b) clearSpeaking();
+  };
+  return b;
+}
+function clearSpeaking() {
+  if (!speakingBtn) return;
+  speakingBtn.setAttribute('aria-pressed','false');
+  speakingBtn.setAttribute('aria-label','Read this aloud');
+  speakingBtn = null;
+}
+/** Put a speaker beside an element without disturbing its layout. */
+function addSpeaker(el, getText) {
+  if (!el || !ttsAvailable() || el.dataset.spk) return;
+  el.dataset.spk = '1';
+  const row = document.createElement('div'); row.className = 'spk-row';
+  el.parentNode.insertBefore(row, el);
+  row.append(el, speakerFor(getText || (() => el.textContent)));
+}
+/** Every explanatory block on the page, plus anything added later. */
+function wireSpeakers(root = document) {
+  if (!ttsAvailable() || !ttsReady) return;
+  root.querySelectorAll('.card > .sub:not([data-spk])').forEach(el => addSpeaker(el));
+  root.querySelectorAll('.drill > p:not([data-spk])').forEach(el => addSpeaker(el));
+  root.querySelectorAll('#runBrief:not([data-spk])').forEach(el => addSpeaker(el));
+  root.querySelectorAll('#feedback:not([data-spk])').forEach(el => addSpeaker(el));
+  root.querySelectorAll('#verdict:not([data-spk])').forEach(el => addSpeaker(el, () => {
+    const v = document.getElementById('verdict'); return v ? v.innerText : '';
+  }));
+}
+
 /* ---------- VERA's standing instructions (a leading user turn — there is no system role) ---------- */
-const VERA_RULES = `You are VERA, an on-camera performance coach helping someone write a short script they will read to camera.
+const SCRIPT_TASK = `You are helping someone write a short script they will read to camera.
 
 How you coach:
 - The lens is a confidant, not an audience. Write for one person, not a crowd.
@@ -182,6 +245,9 @@ How you behave here:
 - Keep replies under 120 words unless they ask for the script itself.
 - When they ask for the script, or when you have enough, output ONLY the script text between the markers <<<SCRIPT and SCRIPT>>> with no commentary inside them. You may add one short line after the closing marker.
 - Aim for 45-90 seconds spoken, which is roughly 110-220 words.`;
+
+/** Persona first, then the task. The honesty floor rides along inside compose(). */
+const rules = () => compose(state.persona, { custom: state.customPersona }) + '\n\n' + SCRIPT_TASK;
 
 /* ---------- capability, resolved late and possibly absent ---------- */
 let sample = null, sampleDead = false;
@@ -221,6 +287,23 @@ const HIDE_CODES = new Set(['not_granted','sampling_disabled','not_declared','ca
 
 /* ================= WRITE ================= */
 $('#v-write').append(frag(`
+<div class="card">
+  <h2>Your coach</h2>
+  <p class="sub">Who is in your ear, and whether they read aloud. The model underneath is your own Claude subscription through this page — approved once, no key, nothing billed separately. Personality changes the register, never the honesty.</p>
+  <div class="row"><label for="personaSel">personality</label>
+    <select id="personaSel" style="font-family:var(--body);font-size:13.5px;padding:6px;background:var(--sunk);color:var(--ink);border:1px solid var(--line);border-radius:6px"></select>
+    <span></span></div>
+  <p class="sub" id="personaBlurb" style="margin:4px 0 10px"></p>
+  <textarea id="personaText" class="script" style="min-height:110px;display:none" placeholder="Write the coach you want. The honesty rules are added underneath whatever you write."></textarea>
+  <div class="row"><label for="voiceSel">voice</label>
+    <select id="voiceSel" style="font-family:var(--body);font-size:13.5px;padding:6px;background:var(--sunk);color:var(--ink);border:1px solid var(--line);border-radius:6px"></select>
+    <span></span></div>
+  <div class="row"><label for="rateSel">speed</label>
+    <input id="rateSel" type="range" min="0.7" max="1.4" step="0.05" value="1">
+    <span class="v" id="rateV">1.0×</span></div>
+  <div class="bar"><button class="btn" id="tryVoice">Hear it</button><button class="btn quiet" id="stopVoice">Stop</button></div>
+  <div id="ttsNote"></div>
+</div>
 <div class="card">
   <h2>Write the script</h2>
   <p class="sub">Talk it through with VERA. Tell it what the video is for and who it is for; it will push back, cut, and hand you something sayable. Ask for "the script" when you want the draft.</p>
@@ -277,7 +360,7 @@ async function send(text) {
   const recent = state.turns.slice(-16);
   try {
     const { text: reply } = await sample(
-      [{ role:'user', content: VERA_RULES }, ...recent],
+      [{ role:'user', content: rules() }, ...recent],
       { cache:false, signal: ctl.signal, onText: ({ text }) => { out.textContent = text; chat.scrollTop = chat.scrollHeight; } }
     );
     state.turns.push({ role:'assistant', content: reply }); trimTurns(); save(state);
@@ -497,7 +580,7 @@ function endTake() {
   } else $('#cueReport').hidden = true;
 
   if (!tooShort) { state.takes.push({ at: Date.now(), score: r.score, wpm: t.wpm }); save(state); renderTakes(); }
-  coachOn(t, r, w, hedges, spoken);
+  coachOn(t, r, w, hedges, spoken, cues);
   take = null;
 }
 $('#startBtn').onclick = startTake;
@@ -520,31 +603,22 @@ function renderTakes() {
 $('#clearTakes').onclick = () => { state.takes = []; save(state); renderTakes(); };
 renderTakes();
 
-async function coachOn(t, r, w, hedges, spoken) {
+async function coachOn(t, r, w, hedges, spoken, cues = []) {
   if (!sample || sampleDead) return;
   const card = $('#feedbackCard'), out = $('#feedback');
-  card.hidden = false; out.textContent = 'VERA is watching that back…';
-  const lines = Object.entries(t).filter(([,v]) => Number.isFinite(v))
-    .map(([k,v]) => `- ${k}: ${typeof v === 'number' ? v.toFixed(3) : v}${TARGETS[k] ? ` (target ${TARGETS[k].band[0]}–${TARGETS[k].band[1]})` : ''}`).join('\n');
-  const prompt = `${VERA_RULES}
-
-A take just finished. Here is the measured telemetry:
-${lines}
-- composite score: ${r.score}/100
-${w ? `- weakest dimension: ${w.metric}` : ''}
-${Number.isFinite(hedges) ? `- hedge density: ${hedges.toFixed(3)} (hedging is a conviction problem, distinct from filler words)` : ''}
-${spoken ? `\nWhat they actually said:\n"""${spoken.slice(0, 1500)}"""` : '\nNo transcript was captured.'}
-
-Give post-take feedback in exactly this order, as plain prose, no headings, under 130 words:
-1. One genuine positive naming something real in the numbers or the words. Not flattery.
-2. The telemetry that matters, in plain language — what the number means for a viewer, not the number restated.
-3. Exactly one concrete physical adjustment for the next take. One. Never "be more confident".`;
+  card.hidden = false; out.textContent = 'Watching that back…';
+  const prompt = reviewPrompt({
+    persona: state.persona, custom: state.customPersona,
+    telemetry: t, score: r.score, weakest: w?.metric, hedges,
+    transcript: spoken, cues: cues.map(c => c.id),
+  });
   try {
     const { text } = await sample(prompt, { cache:false, onText: ({ text }) => { out.textContent = text; } });
     out.textContent = text;
+    wireSpeakers();
   } catch (e) {
     if (HIDE_CODES.has(e.code)) { card.hidden = true; markChatUnavailable(ERR_COPY[e.code]); }
-    else out.textContent = e.text || (ERR_COPY[e.code] || 'Could not get feedback just now.');
+    else out.textContent = e.text || (ERR_COPY[e.code] || 'Could not get a review just now.');
   }
 }
 
@@ -824,6 +898,63 @@ document.querySelector('nav').addEventListener('click', e => {
   if (b.dataset.v === 'practice') meta();
 });
 meta();
+
+/* ---------- coach settings ---------- */
+$('#personaSel').innerHTML = PERSONAS.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+$('#personaSel').value = state.persona;
+$('#personaText').value = state.customPersona || '';
+$('#rateSel').value = state.rate || 1;
+
+function renderPersona() {
+  const p = personaById(state.persona);
+  $('#personaBlurb').textContent = p.blurb;
+  $('#personaText').style.display = p.editable ? 'block' : 'none';
+  applyVoicePreference();
+}
+$('#personaSel').onchange = e => { state.persona = e.target.value; save(state); renderPersona(); };
+$('#personaText').addEventListener('input', e => { state.customPersona = e.target.value; save(state); });
+$('#rateSel').addEventListener('input', e => {
+  state.rate = Number(e.target.value); save(state);
+  $('#rateV').textContent = state.rate.toFixed(2).replace(/0$/,'') + '×';
+});
+$('#rateV').textContent = (Number(state.rate)||1).toFixed(2).replace(/0$/,'') + '×';
+
+let voiceList = [];
+function applyVoicePreference() {
+  if (!voiceList.length) return;
+  const saved = voiceList.find(v => v.name === state.voiceName);
+  chosenVoice = saved || pickVoice(voiceList, { prefer: personaById(state.persona).voice.prefer });
+  if (chosenVoice) $('#voiceSel').value = chosenVoice.name;
+}
+(async () => {
+  if (!ttsAvailable()) {
+    $('#ttsNote').innerHTML = `<div class="note warn">This browser has no speech engine, so nothing can be read aloud. Everything else works.</div>`;
+    $('#voiceSel').disabled = true; $('#tryVoice').disabled = true; $('#rateSel').disabled = true;
+    return;
+  }
+  voiceList = await voices();
+  if (!voiceList.length) {
+    $('#ttsNote').innerHTML = `<div class="note warn">No voices are installed for this browser. Reading aloud will not work until the system has one.</div>`;
+    return;
+  }
+  ttsReady = true;
+  $('#voiceSel').innerHTML = voiceList.map(v => `<option value="${esc(v.name)}">${esc(v.name)} — ${esc(v.lang||'')}</option>`).join('');
+  $('#voiceSel').onchange = e => { state.voiceName = e.target.value; save(state); applyVoicePreference(); };
+  applyVoicePreference();
+  wireSpeakers();
+})();
+$('#tryVoice').onclick = () => speak(
+  `This is ${personaById(state.persona).name}. If the pace is wrong, change it here before a take rather than during one.`,
+  { voice: chosenVoice, rate: Number(state.rate)||1 });
+$('#stopVoice').onclick = () => { stopSpeech(); clearSpeaking(); };
+renderPersona();
+
+/* No-op until a voice is confirmed; the resolver above calls this again. */
+wireSpeakers();
+const origRenderDrillList = renderDrillList;
+renderDrillList = function(){ origRenderDrillList(); wireSpeakers(); };
+const origStartRun = startRun;
+startRun = function(d){ origStartRun(d); wireSpeakers(); };
 
 /* everything above exists now — safe to ask what this view can do */
 detectCapability();

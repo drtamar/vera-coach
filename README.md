@@ -213,7 +213,11 @@ npm run studio:build       # flatten for publishing
 
 The product UI, four sections:
 
-- **Write** — a chat with VERA that develops a script with you. It front-loads the point,
+- **Your coach** — pick a personality and a voice. VERA is the documented executive coach;
+  Ara is warmer and more conversational; or write your own. Whatever the register, the
+  honesty rules are appended underneath and cannot be edited out — a coach that flatters
+  makes the measurement pointless.
+- **Write** — a chat with your coach that develops a script with you. It front-loads the point,
   cuts background, and bans hedges from what you'll say. Ask for the script and it hands one
   back between markers, which the page extracts and saves.
 - **Practice** — a teleprompter runs your script at the pace you set, and with a microphone
@@ -255,6 +259,20 @@ gaze, gesture placement or sway, and say so rather than letting you practise aga
 nothing is checking. Capability is assumed optimistically and downgraded on a real failure —
 starting pessimistic hid eight runnable drills from someone who had simply not been asked for
 a microphone yet.
+
+## Reading aloud
+
+Every explanatory block, drill briefing and post-take review carries a speaker button. It
+uses the browser's own speech engine, so there is no API, no key, and it works when model
+access has been declined.
+
+Never autoplay. Audio that starts by itself is hostile, and someone practising being on
+camera does not need a second voice arriving unasked.
+
+Long text is spoken as a queue of sentence-sized utterances, because several engines
+truncate a long one silently — it simply stops mid-sentence with no error. Buttons render
+only once a voice is confirmed to exist: `speechSynthesis` can be present with an empty voice
+list, and every button would be dead on arrival.
 
 ## The live coach
 
@@ -322,10 +340,10 @@ npm test            # all suites; the browser suite skips if playwright is absen
 npm i && npm test   # includes the on-ramp browser suite
 ```
 
-473 tests: scoring and learning (77), sensing against synthesized ground truth (65), the
-privacy invariant (34), tool schemas (21), the live cue governor (33), drill sessions (36),
-auth and platform gating (51), drill generation (58), technique research (45), real-SDK
-integration (10), the sandbox in a real browser (24), on-ramp UI in a real browser (21).
+517 tests: scoring and learning (77), sensing against synthesized ground truth (65), the
+privacy invariant (36), tool schemas (21), the live cue governor (33), drill sessions (38),
+voice and personas (48), auth and platform gating (51), drill generation (58), technique
+research (45), real-SDK integration (10), the sandbox in a real browser (24), on-ramp UI (21).
 
 The integration suite puts the actual SDK in the path and inspects what reaches the wire,
 because every other suite injects a fake client and therefore validates this project's
