@@ -86,21 +86,36 @@ skipped whole categories. These came out of a second pass.
       key, works when model access is declined. Buttons appear only when a voice actually
       exists, because `speechSynthesis` can be present with an empty voice list and every
       button would be dead.
-- [ ] **Grok cannot be reached from a published page.** A consumer subscription authenticates
+- [ ] **Grok cannot be reached from a published page — and a subscription cannot fix that.** A consumer subscription authenticates
       a person in that vendor's own app; there is no mechanism for a third-party page to act
       as it. The only programmatic route is the xAI API with a key, which is a different
       product and was explicitly ruled out. What *is* portable — the personality and the
-      voice — is built. If the provider itself matters, it needs a backend you host.
-- [ ] **The transcript path is Chromium-only.** Web Speech runs in Chrome and Edge. In Safari
-      or Firefox there is no transcript, so `wpm`, `filler_density` and `hedge_density` are
-      never produced — which silently removes **4 of the 8 runnable drills** (1.3, 3.2, 3.3,
-      3.4). Nothing tells the user why. Either detect it and say so, or ship a WASM recogniser.
+      voice — is built, including **Ara (unhinged)**, an original chaotic-comedy persona that
+      still inherits the honesty floor. The browser's text-to-speech cannot produce Grok's own
+      Ara voice; it picks the closest installed system voice. If the provider itself matters,
+      it needs a backend you host holding an xAI API key.
+      **Subscription-compatible routes, built:** the studio's *Take this take to Grok* card copies
+      a review packet to paste into Grok in its own app; `npm run persona:export` prints any
+      persona for Grok's custom instructions; and `docs/GROK_HANDOFF.md` sets up Grok Build, xAI's
+      terminal agent for SuperGrok subscribers, to work on this repo alongside Claude.
+- [x] ~~**The transcript path is Chromium-only.**~~ Detected and explained. Web Speech runs in
+      Chrome and Edge only; elsewhere `wpm`, `filler_density` and `hedge_density` are never
+      produced. The studio now checks up front, says so on the Drills tab, and each blocked
+      drill names the true cause (no speech recognition / metric not computed / needs the
+      camera) instead of blaming the camera for everything.
+      **Correction:** this entry used to say it removed 4 of the 8 runnable drills (1.3, 3.2,
+      3.3, 3.4). It is **2** — 3.3 and 3.4. Drills 1.3 and 3.2 also check transcript metrics but
+      were already blocked by uncomputed ones (§2), so they were never runnable. A test now
+      pins this. A WASM recogniser (Vosk/whisper.cpp) would restore the two drills elsewhere.
 - [ ] **Accessibility is thin across all three pages.** One `aria-live` in the studio, none in
       the sandbox, no focus management anywhere, no `aria-label` on any control. The on-ramp
       got a focus trap early; nothing since has had the same pass.
-- [ ] **A reload mid-session loses the baseline.** The drill record is only written in
-      `finishRun()`, so refreshing between the baseline and the drill discards the measurement
-      the whole bracketing exists to capture.
+- [x] ~~**A reload mid-session lost the baseline.**~~ Fixed. The run is saved after every
+      completed phase and offered back on reload ("Unfinished session — Resume / Discard").
+      Only completed phases are kept — a take in flight when the page closed is lost, and the
+      banner says so. Snapshots older than 6 hours, from the future, for an unknown drill, or
+      for a drill the device can no longer measure are refused and cleared, so a stale baseline
+      cannot be paired with today's drill.
 - [ ] **Nothing enforces stage order.** `recommend()` prefers low stages and `stageProgress()`
       reports them, but no drill is ever *blocked*. The documents are explicit that behavioural
       change must become habit before the next layer lands. Moot today — no Stage 4–5 drill is

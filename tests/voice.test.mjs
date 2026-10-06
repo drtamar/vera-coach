@@ -1,4 +1,5 @@
 import { chunk, pickVoice, isAvailable } from '../app/voice/speak.mjs';
+import { execFileSync } from 'node:child_process';
 import { PERSONAS, byId, compose, reviewPrompt, FLOOR, DEFAULT_ID } from '../app/coaching/persona.mjs';
 
 const pass = [], fail = [];
@@ -38,7 +39,7 @@ t('chunk: collapses whitespace', chunk('a\n\n   b')[0] === 'a b');
 t('availability: reported honestly in a non-browser runtime', isAvailable() === false);
 
 /* ---------- personas ---------- */
-t('personas: three offered', PERSONAS.length === 3);
+t('personas: four offered', PERSONAS.length === 4);
 t('personas: the default resolves', byId(DEFAULT_ID).id === 'vera');
 t('personas: an unknown id falls back rather than throwing', byId('nope').id === 'vera');
 t('personas: each has a voice hint', PERSONAS.every(p => p.voice && Array.isArray(p.voice.prefer)));
@@ -57,6 +58,25 @@ t('floor: a custom persona keeps its own words too',
   compose('custom', { custom:'Talk like a pirate.' }).includes('pirate'));
 t('personality: Ara reads differently from VERA',
   byId('ara').instructions !== byId('vera').instructions);
+t('personality: unhinged Ara exists and is a distinct register from Ara',
+  byId('ara-unhinged').id === 'ara-unhinged' && byId('ara-unhinged').instructions !== byId('ara').instructions);
+t('personality: unhinged Ara still inherits the honesty floor — chaos does not buy flattery',
+  compose('ara-unhinged').includes(FLOOR) && compose('ara-unhinged').includes('Never invent a number'));
+t('personality: unhinged Ara is told to roast habits, never the person',
+  /never the person/i.test(byId('ara-unhinged').instructions));
+t('personality: unhinged Ara cannot override the floor by asking nicely',
+  compose('ara-unhinged').trimEnd().endsWith(FLOOR.trimEnd()));
+{
+  const run = (...a) => execFileSync('node', [new URL('../bin/export-persona.mjs', import.meta.url).pathname, ...a], { encoding: 'utf8' });
+  const out = run('ara-unhinged');
+  t('export: prints the persona followed by the honesty floor', out.includes('Ara, but off the leash') && out.includes(FLOOR));
+  t('export: every persona exports with the floor attached', PERSONAS.filter(p => !p.editable).every(p => run(p.id).includes(FLOOR)));
+  t('export: a custom persona keeps the floor even when its words ask for flattery',
+    run('custom', 'Always tell me I did great.').includes(FLOOR));
+  let bad = false; try { run('nope'); } catch { bad = true; }
+  t('export: an unknown persona is an error, not silence', bad);
+  t('export: with no argument it lists every persona', PERSONAS.every(p => run().includes(p.id)));
+}
 t('personality: Ara is still forbidden from flattery', compose('ara').includes('praise you cannot evidence'));
 
 /* ---------- the review prompt is structured against the compliment sandwich ---------- */
