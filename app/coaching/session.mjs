@@ -54,6 +54,61 @@ export function runnability(drill, { produced = AUDIO_METRICS } = {}) {
   return { runnable: missing.length === 0, gated: true, missing };
 }
 
+/** Metrics that exist only if the browser can transcribe speech. */
+export const TRANSCRIPT_METRICS = new Set(['wpm', 'filler_density', 'hedge_density']);
+
+/**
+ * Why a drill cannot run, split by cause so the page can say the true thing.
+ *
+ * "Needs the camera" was printed for every blocked drill, which was wrong for
+ * two of the three reasons: a drill can be blocked because the browser has no
+ * speech recognition (Safari, Firefox), or because an audio metric is derivable
+ * but nobody computes it yet. Telling someone to enable a camera for either
+ * sends them chasing the wrong fix.
+ */
+export function explainMissing(missing = []) {
+  const out = { transcript: [], unmeasured: [], camera: [] };
+  for (const m of missing) {
+    if (TRANSCRIPT_METRICS.has(m)) out.transcript.push(m);
+    else if (AUDIO_METRICS.has(m)) out.unmeasured.push(m);
+    else out.camera.push(m);
+  }
+  return out;
+}
+
+/* ---------- an interrupted session survives a reload ---------- */
+
+export const RUN_MAX_AGE_MS = 6 * 3600 * 1000;   // a baseline from this morning is not today's baseline
+
+/**
+ * The part of a run worth keeping across a reload.
+ *
+ * Only COMPLETED phases are saved. A phase in flight when the page goes away is
+ * lost, and pretending otherwise would mean scoring a take nobody finished.
+ * `phase` is therefore always the last completed one ('idle' means none yet).
+ */
+export function snapshotRun(run, at = Date.now()) {
+  if (!run || run.phase === 'done' || !run.drill) return null;
+  return { drillId: run.drill.id, phase: run.phase, pre: run.pre ?? null, post: run.post ?? null, at };
+}
+
+/**
+ * Rebuild a run from a snapshot, or return null when it should not be resumed:
+ * unknown drill, a drill this device can no longer measure, stale, or malformed.
+ * Resuming a baseline into a different day or a different capability set would
+ * quietly break the within-session pairing the efficacy model depends on.
+ */
+export function restoreRun(snap, drills, { now = Date.now(), runnable = () => true } = {}) {
+  if (!snap || typeof snap !== 'object') return null;
+  const drill = drills.find(d => d.id === snap.drillId);
+  if (!drill) return null;
+  if (!['idle', 'baseline', 'drill'].includes(snap.phase)) return null;
+  if (!Number.isFinite(snap.at) || now - snap.at > RUN_MAX_AGE_MS || snap.at > now + 60000) return null;
+  if (snap.phase !== 'idle' && !snap.pre) return null;      // a baseline phase with no baseline is corrupt
+  if (!runnable(drill)) return null;
+  return { drill, phase: snap.phase, pre: snap.pre ?? null, post: null };
+}
+
 /** Per-drill record kept in the store. */
 export const emptyRecord = () => ({ reps: 0, sessions: [], streak: 0, graduatedAt: null });
 

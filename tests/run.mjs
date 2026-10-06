@@ -14,6 +14,7 @@ const suites = [
   { file: 'integration.test.mjs', name: 'real SDK integration' },
   { file: 'sandbox.test.mjs', name: 'sandbox browser', needs: 'playwright' },
   { file: 'onramp.test.mjs',  name: 'on-ramp browser', needs: 'playwright' },
+  { file: 'studio.test.mjs',  name: 'studio browser', needs: 'playwright' },
 ];
 
 let failed = 0, skipped = 0;

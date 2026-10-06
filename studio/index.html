@@ -160,7 +160,8 @@ import { wordsPerMinute, fillerDensity, hedgeDensity, yinPitch, pitchSemitoneSD,
          terminalPitchSlope, rms, silenceProfile } from '../app/sensing/audio.mjs';
 import { buildPrompt } from '../server/generate.mjs';
 import { CueGovernor, RollingTelemetry, DEFAULTS as CUE_CFG } from '../app/coaching/live.mjs';
-import { runnability, recordSession, recommend, stageProgress, BRACKET_S } from '../app/coaching/session.mjs';
+import { runnability, recordSession, recommend, stageProgress, BRACKET_S,
+         TRANSCRIPT_METRICS, explainMissing, snapshotRun, restoreRun } from '../app/coaching/session.mjs';
 import { speak, stop as stopSpeech, voices, pickVoice, isAvailable as ttsAvailable } from '../app/voice/speak.mjs';
 import { PERSONAS, byId as personaById, compose, reviewPrompt, DEFAULT_ID } from '../app/coaching/persona.mjs';
 import { meetsGraduation, REQUIRED_CONSECUTIVE } from '../app/scoring/score.mjs';
@@ -643,9 +644,11 @@ $('#v-drills').append(frag(`
   <div id="phaseNote"></div>
   <div id="verdict"></div>
 </div>
+<div id="resumeBanner"></div>
 <div class="card">
   <h2>Curriculum</h2>
   <p class="sub">${registry.drills.length} drills across six stages. A drill whose benchmark this device cannot measure says so rather than letting you practise against a bar nothing is checking.</p>
+  <div id="asrNote"></div>
   <div id="drillList"></div>
 </div>`));
 
@@ -659,7 +662,25 @@ let audioOk = true;
    measured", so it must not be offered at all. */
 const MEASURED = new Set(['wpm','filler_density','hedge_density','pitch_semitone_sd',
                           'terminal_pitch_slope','silence_ratio','duration_s']);
-const caps = () => ({ produced: audioOk ? MEASURED : new Set() });
+/* Web Speech exists in Chrome and Edge only. Without it wpm, filler_density and
+   hedge_density can never be produced, which removes every drill that checks
+   them. Detected up front so those drills say so instead of failing silently. */
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+const asrOk = !!SpeechRec;
+const produced = () => {
+  if (!audioOk) return new Set();
+  return asrOk ? MEASURED : new Set([...MEASURED].filter(m => !TRANSCRIPT_METRICS.has(m)));
+};
+const caps = () => ({ produced: produced() });
+
+function blockedMessage(missing) {
+  const w = explainMissing(missing);
+  const parts = [];
+  if (w.transcript.length) parts.push(`Needs speech recognition, which this browser does not provide (Chrome and Edge do). It cannot measure ${w.transcript.map(esc).join(', ')}.`);
+  if (w.unmeasured.length) parts.push(`Not available yet — ${w.unmeasured.map(esc).join(', ')} ${w.unmeasured.length>1?'are':'is'} not computed by this studio.`);
+  if (w.camera.length) parts.push(`Needs the camera — this device cannot measure ${w.camera.map(esc).join(', ')}.`);
+  return parts.join(' ');
+}
 
 function renderStages() {
   $('#stageBar').innerHTML = stageProgress(registry.drills, state.drills).map(s => `
@@ -674,6 +695,8 @@ function renderStages() {
 let lastTelemetry = null;
 
 function renderDrillList() {
+  $('#asrNote').innerHTML = asrOk ? '' :
+    `<div class="note warn" style="margin-bottom:10px" role="status">This browser cannot transcribe speech, so drills that check pace, filler words or hedging are unavailable. Open the studio in Chrome or Edge to run them.</div>`;
   $('#drillList').innerHTML = registry.drills.map(d => {
     const r = runnability(d, caps());
     const rec = state.drills[d.id];
@@ -688,7 +711,7 @@ function renderDrillList() {
       <p>${esc(d.coach_brief.replace(/^AUTHORED\.\s*/,''))}</p>
       ${r.runnable
         ? `<button class="btn" data-run="${d.id}" style="margin-top:8px">Run</button>`
-        : `<div class="note warn" style="margin-top:8px">Needs the camera — this device cannot measure ${esc(r.missing.join(', '))}.</div>`}
+        : `<div class="note warn" style="margin-top:8px">${blockedMessage(r.missing)}</div>`}
     </div>`;
   }).join('');
 }
@@ -702,14 +725,40 @@ document.getElementById('v-drills').addEventListener('click', e => {
   startRun(registry.drills.find(d => d.id === id));
 });
 
-function startRun(drill) {
-  run = { drill, phase:'idle', pre:null, post:null };
+function nextLabel() {
+  return run.phase === 'idle' ? `Start baseline (${BRACKET_S}s)`
+       : run.phase === 'baseline' ? `Start the drill (${run.drill.duration_s}s)`
+       : `Measure after (${BRACKET_S}s)`;
+}
+/* Survives a reload. Saved after every COMPLETED phase and cleared on finish or
+   cancel, so the baseline the whole bracketing exists to capture is not lost. */
+function persistRun() { state.activeRun = snapshotRun(run); save(state); }
+
+function renderResume() {
+  const el = $('#resumeBanner');
+  if (run || !state.activeRun) { el.innerHTML = ''; return; }
+  const r = restoreRun(state.activeRun, registry.drills, { runnable: d => runnability(d, caps()).runnable });
+  if (!r || r.phase === 'idle') {                       // stale, unrunnable, or nothing worth resuming
+    state.activeRun = null; save(state); el.innerHTML = ''; return;
+  }
+  const done = r.phase === 'baseline' ? 'baseline recorded' : 'baseline recorded and drill done';
+  el.innerHTML = `<div class="note ok" role="region" aria-label="Unfinished session" style="margin-bottom:12px">
+    <strong>Unfinished session:</strong> ${esc(r.drill.name)} — ${done}. The take that was running when the page closed was not kept.
+    <button class="btn go" id="resumeBtn" style="margin-left:8px">Resume</button>
+    <button class="btn quiet" id="discardBtn">Discard</button></div>`;
+  $('#resumeBtn').onclick = () => { startRun(r.drill, r); el.innerHTML = ''; };
+  $('#discardBtn').onclick = () => { state.activeRun = null; save(state); el.innerHTML = ''; };
+}
+
+function startRun(drill, resumed = null) {
+  run = resumed || { drill, phase:'idle', pre:null, post:null };
+  if (!resumed) persistRun();
   $('#runCard').hidden = false;
   $('#runName').textContent = drill.name;
   $('#runBrief').textContent = drill.coach_brief.replace(/^AUTHORED\.\s*/,'');
   $('#runProtocol').innerHTML = drill.protocol.map(x => `<li>${esc(x)}</li>`).join('');
   $('#verdict').innerHTML = ''; $('#phaseNote').innerHTML = '';
-  $('#phaseBtn').disabled = false; $('#phaseBtn').textContent = `Start baseline (${BRACKET_S}s)`;
+  $('#phaseBtn').disabled = false; $('#phaseBtn').textContent = nextLabel();
   renderPhaseBar();
   $('#runCard').scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
@@ -724,7 +773,7 @@ function renderPhaseBar() {
   }).join('');
 }
 
-$('#abortBtn').onclick = () => { stopPhase(); run = null; $('#runCard').hidden = true; };
+$('#abortBtn').onclick = () => { stopPhase(); run = null; persistRun(); $('#runCard').hidden = true; renderResume(); };
 $('#phaseBtn').onclick = async () => {
   if (!run) return;
   const next = run.phase === 'idle' ? 'baseline' : run.phase === 'baseline' ? 'drill' : 'post';
@@ -749,12 +798,13 @@ $('#phaseBtn').onclick = async () => {
 
   $('#phaseBtn').disabled = false;
   if (next === 'post') { finishRun(); }
-  else { $('#phaseBtn').textContent = next === 'baseline' ? `Start the drill (${run.drill.duration_s}s)` : `Measure after (${BRACKET_S}s)`; }
+  else { persistRun(); $('#phaseBtn').textContent = nextLabel(); }
 };
 
 function finishRun() {
   run.phase = 'done'; renderPhaseBar();
   const out = recordSession(state.drills, run.drill, { pre: run.pre, post: run.post, efficacy });
+  state.activeRun = null;
   saveAll();
   const rows = out.checks.map(c => `<div style="font-family:var(--mono);font-size:12px;padding:2px 0">
     <span class="pill ${c.pass?'doc':'orig'}" style="margin:0 6px 0 0">${c.pass?'pass':'miss'}</span>${esc(c.metric)}
@@ -769,7 +819,7 @@ function finishRun() {
       ? `<div class="note ok" style="margin-top:8px">Learned: ${out.observations.map(o=>`${esc(o.metric)} moved ${o.improvement>0?'+':''}${o.improvement.toFixed(2)} band-widths`).join(', ')}. That went into the model that picks your next drill.</div>`
       : `<div class="note warn" style="margin-top:8px">No before/after pair, so nothing was learned from this run — only the benchmark was checked.</div>`);
   $('#phaseBtn').disabled = true; $('#phaseBtn').textContent = 'Done';
-  renderStages(); renderDrillList();
+  renderStages(); renderDrillList(); renderResume();
 }
 
 /** One measured take. Reuses the same acoustic pipeline as script practice. */
@@ -804,8 +854,7 @@ async function measurePhase(secs) {
       const e = rms(buf); st.energy.push(e);
       st.pitch.push(e > 0.01 ? yinPitch(buf, ctx.sampleRate) : null);
     }, 20);
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SR) { const r = new SR(); r.continuous=true; r.interimResults=false; r.lang='en-US';
+    if (SpeechRec) { const r = new SpeechRec(); r.continuous=true; r.interimResults=false; r.lang='en-US';
       r.onresult = ev => { for (let i=ev.resultIndex;i<ev.results.length;i++) st.transcript += ' ' + ev.results[i][0].transcript; };
       r.onerror = () => {}; try { r.start(); st.asr = r; } catch {} }
   } catch {
@@ -841,7 +890,7 @@ async function measurePhase(secs) {
   };
 }
 
-renderStages(); renderDrillList();
+renderStages(); renderDrillList(); renderResume();
 
 /* ================= BENCH ================= */
 const SL = { gaze_fixation_ratio:[0,1,.01,.72], wpm:[60,240,1,140], pitch_semitone_sd:[0,10,.1,3.1],
@@ -954,7 +1003,7 @@ wireSpeakers();
 const origRenderDrillList = renderDrillList;
 renderDrillList = function(){ origRenderDrillList(); wireSpeakers(); };
 const origStartRun = startRun;
-startRun = function(d){ origStartRun(d); wireSpeakers(); };
+startRun = function(...a){ origStartRun(...a); wireSpeakers(); };
 
 /* everything above exists now — safe to ask what this view can do */
 detectCapability();

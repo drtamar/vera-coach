@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { runnability, recordSession, recommend, stageProgress, emptyRecord,
-         AUDIO_METRICS, BRACKET_S } from '../app/coaching/session.mjs';
+         AUDIO_METRICS, BRACKET_S, TRANSCRIPT_METRICS, explainMissing, snapshotRun, restoreRun,
+         RUN_MAX_AGE_MS } from '../app/coaching/session.mjs';
 import { EfficacyModel } from '../app/learning/efficacy.mjs';
 import { REQUIRED_CONSECUTIVE } from '../app/scoring/score.mjs';
 
@@ -136,6 +137,45 @@ const byId = id => registry.drills.find(d => d.id === id);
   t('store: session history is bounded', store[drill.id].sessions.length <= 30, `${store[drill.id].sessions.length}`);
   t('store: but the rep count is not lost', store[drill.id].reps === 50);
 }
+/* ---------- why a drill is blocked is told truthfully ---------- */
+{
+  const w = explainMissing(['wpm', 'filler_density', 'speech_onset_latency_s', 'gaze_fixation_ratio']);
+  t('explain: transcript metrics are attributed to speech recognition', w.transcript.join() === 'wpm,filler_density', JSON.stringify(w));
+  t('explain: audio-derivable but uncomputed metrics are NOT blamed on the camera', w.unmeasured.join() === 'speech_onset_latency_s', JSON.stringify(w));
+  t('explain: only genuinely visual metrics are blamed on the camera', w.camera.join() === 'gaze_fixation_ratio', JSON.stringify(w));
+  t('explain: nothing missing explains nothing', explainMissing([]).camera.length === 0 && explainMissing().transcript.length === 0);
+  // without Web Speech the transcript metrics vanish, and so do the drills that need them
+  const noAsr = { produced: new Set(['pitch_semitone_sd','terminal_pitch_slope','silence_ratio','duration_s']) };
+  const withAsr = { produced: new Set(['wpm','filler_density','hedge_density','pitch_semitone_sd','terminal_pitch_slope','silence_ratio','duration_s']) };
+  const lost = registry.drills.filter(d => runnability(d, withAsr).runnable && !runnability(d, noAsr).runnable).map(d => d.id).sort();
+  // 1.3 and 3.2 also check transcript metrics, but are already blocked by uncomputed ones — they were never runnable
+  t('transcript: losing speech recognition removes exactly drills 3.3 and 3.4', lost.join() === '3.3,3.4', lost.join());
+  t('transcript: the set matches what measurePhase derives from a transcript',
+    [...TRANSCRIPT_METRICS].sort().join() === 'filler_density,hedge_density,wpm');
+}
+
+/* ---------- a reload does not discard the baseline ---------- */
+{
+  const d = byId('3.3'), now = 1_000_000_000_000;
+  const pre = { silence_ratio: 0.1, wpm: 150 };
+  const run = { drill: d, phase: 'baseline', pre, post: null };
+  const snap = snapshotRun(run, now);
+  t('snapshot: keeps the drill, the phase and the baseline', snap.drillId === '3.3' && snap.phase === 'baseline' && snap.pre.wpm === 150);
+  t('snapshot: survives a JSON round trip (localStorage)', restoreRun(JSON.parse(JSON.stringify(snap)), registry.drills, { now })?.pre.wpm === 150);
+  t('snapshot: a finished or absent run saves nothing', snapshotRun({ ...run, phase: 'done' }, now) === null && snapshotRun(null) === null);
+  const back = restoreRun(snap, registry.drills, { now });
+  t('restore: rebuilds the live drill object, not just its id', back.drill === d && back.phase === 'baseline' && back.post === null);
+  t('restore: a snapshot older than the age limit is refused', restoreRun(snap, registry.drills, { now: now + RUN_MAX_AGE_MS + 1 }) === null);
+  t('restore: a timestamp from the future is refused', restoreRun({ ...snap, at: now + 3_600_000 }, registry.drills, { now }) === null);
+  t('restore: an unknown drill is refused', restoreRun({ ...snap, drillId: 'nope' }, registry.drills, { now }) === null);
+  t('restore: a baseline phase with no baseline is corrupt', restoreRun({ ...snap, pre: null }, registry.drills, { now }) === null);
+  t('restore: a phase that cannot be resumed is refused', restoreRun({ ...snap, phase: 'post' }, registry.drills, { now }) === null);
+  t('restore: junk input is refused rather than thrown on', [null, undefined, 'x', 42, {}].every(x => restoreRun(x, registry.drills, { now }) === null));
+  t('restore: a drill this device can no longer measure is refused',
+    restoreRun(snap, registry.drills, { now, runnable: () => false }) === null);
+  t('restore: an idle snapshot restores with no baseline', restoreRun({ drillId:'3.3', phase:'idle', pre:null, at: now }, registry.drills, { now }).pre === null);
+}
+
 t('constants: bracketing takes are short enough not to be a chore', BRACKET_S <= 30);
 t('constants: audio metric set is non-trivial', AUDIO_METRICS.size > 10);
 
