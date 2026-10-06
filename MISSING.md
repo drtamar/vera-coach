@@ -94,6 +94,10 @@ skipped whole categories. These came out of a second pass.
       still inherits the honesty floor. The browser's text-to-speech cannot produce Grok's own
       Ara voice; it picks the closest installed system voice. If the provider itself matters,
       it needs a backend you host holding an xAI API key.
+      **Subscription-compatible routes, built:** the studio's *Take this take to Grok* card copies
+      a review packet to paste into Grok in its own app; `npm run persona:export` prints any
+      persona for Grok's custom instructions; and `docs/GROK_HANDOFF.md` sets up Grok Build, xAI's
+      terminal agent for SuperGrok subscribers, to work on this repo alongside Claude.
 - [x] ~~**The transcript path is Chromium-only.**~~ Detected and explained. Web Speech runs in
       Chrome and Edge only; elsewhere `wpm`, `filler_density` and `hedge_density` are never
       produced. The studio now checks up front, says so on the Drills tab, and each blocked

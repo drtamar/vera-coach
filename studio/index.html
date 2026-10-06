@@ -437,6 +437,15 @@ $('#v-practice').append(frag(`
   <h2>What VERA saw</h2>
   <p class="sub">One genuine positive, then the telemetry, then exactly one thing to change. Three corrections produce zero corrections.</p>
   <div id="feedback" style="font-size:14px;white-space:pre-wrap"></div>
+</div>
+<div class="card" id="grokCard" hidden>
+  <h2>Take this take to Grok</h2>
+  <p class="sub">Uses your own Grok subscription in its own app — no key, nothing sent from this page. This copies your measurements, the persona and your transcript to the clipboard; nothing leaves your device until you paste it.</p>
+  <div class="bar">
+    <button class="btn" id="grokCopy">Copy review packet</button>
+    <a class="btn quiet" id="grokOpen" href="https://grok.com" target="_blank" rel="noopener noreferrer">Open Grok</a>
+  </div>
+  <div id="grokNote" role="status" aria-live="polite" style="margin-top:8px;font-size:13px"></div>
 </div>`));
 
 $('#speed').oninput = e => { $('#speedV').textContent = e.target.value; };
@@ -604,7 +613,33 @@ function renderTakes() {
 $('#clearTakes').onclick = () => { state.takes = []; save(state); renderTakes(); };
 renderTakes();
 
+let lastReview = null;
+/* Available whether or not model access was granted: the packet is built locally
+   and the person carries it to Grok themselves. */
+function buildPacket() {
+  const x = lastReview; if (!x) return '';
+  return reviewPrompt({ persona: state.persona, custom: state.customPersona,
+    telemetry: x.t, score: x.r.score, weakest: x.w?.metric, hedges: x.hedges,
+    transcript: x.spoken, cues: x.cues.map(c => c.id) });
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch {}
+  try {                                                 // clipboard API blocked in some iframes
+    const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly','');
+    ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.append(ta); ta.select();
+    const ok = document.execCommand('copy'); ta.remove(); return ok;
+  } catch { return false; }
+}
+$('#grokCopy').onclick = async () => {
+  const ok = await copyText(buildPacket());
+  $('#grokNote').textContent = ok
+    ? 'Copied. Open Grok and paste it as your first message. In voice mode, put the persona text in Grok\'s custom instructions instead.'
+    : 'Could not reach the clipboard here. Select the text yourself from the review above, or try again after clicking the page.';
+};
+
 async function coachOn(t, r, w, hedges, spoken, cues = []) {
+  lastReview = { t, r, w, hedges, spoken, cues };
+  $('#grokCard').hidden = false; $('#grokNote').textContent = '';
   if (!sample || sampleDead) return;
   const card = $('#feedbackCard'), out = $('#feedback');
   card.hidden = false; out.textContent = 'Watching that back…';

@@ -93,6 +93,18 @@ const drillBlock = (p, name) => p.locator('.drill', { hasText: name });
   await c.close();
 }
 
+/* ---------- 2b. the Grok hand-off card ---------- */
+{
+  const { c, p } = await open();
+  t('grok: the card is hidden until a take has finished', await p.evaluate(() => document.getElementById('grokCard').hidden));
+  const link = await p.getAttribute('#grokOpen', 'href');
+  const rel = await p.getAttribute('#grokOpen', 'rel');
+  t('grok: it opens Grok in a new tab without leaking the opener', link === 'https://grok.com' && /noopener/.test(rel), `${link} ${rel}`);
+  t('grok: it tells the person nothing leaves the device until they paste',
+    /nothing leaves your device until you paste/i.test(await p.textContent('#grokCard')));
+  await c.close();
+}
+
 /* ---------- 3. a reload between baseline and drill keeps the baseline ---------- */
 {
   const now = Date.now();

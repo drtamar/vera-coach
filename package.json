@@ -16,7 +16,8 @@
     "connect": "node bin/connect.mjs",
     "sandbox:build": "node sandbox/build-publish.mjs sandbox",
     "studio": "node sandbox/serve.mjs",
-    "studio:build": "node sandbox/build-publish.mjs studio"
+    "studio:build": "node sandbox/build-publish.mjs studio",
+    "persona:export": "node bin/export-persona.mjs"
   },
   "devDependencies": {
     "playwright": "^1.47.0"

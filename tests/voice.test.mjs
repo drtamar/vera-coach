@@ -1,4 +1,5 @@
 import { chunk, pickVoice, isAvailable } from '../app/voice/speak.mjs';
+import { execFileSync } from 'node:child_process';
 import { PERSONAS, byId, compose, reviewPrompt, FLOOR, DEFAULT_ID } from '../app/coaching/persona.mjs';
 
 const pass = [], fail = [];
@@ -65,6 +66,17 @@ t('personality: unhinged Ara is told to roast habits, never the person',
   /never the person/i.test(byId('ara-unhinged').instructions));
 t('personality: unhinged Ara cannot override the floor by asking nicely',
   compose('ara-unhinged').trimEnd().endsWith(FLOOR.trimEnd()));
+{
+  const run = (...a) => execFileSync('node', [new URL('../bin/export-persona.mjs', import.meta.url).pathname, ...a], { encoding: 'utf8' });
+  const out = run('ara-unhinged');
+  t('export: prints the persona followed by the honesty floor', out.includes('Ara, but off the leash') && out.includes(FLOOR));
+  t('export: every persona exports with the floor attached', PERSONAS.filter(p => !p.editable).every(p => run(p.id).includes(FLOOR)));
+  t('export: a custom persona keeps the floor even when its words ask for flattery',
+    run('custom', 'Always tell me I did great.').includes(FLOOR));
+  let bad = false; try { run('nope'); } catch { bad = true; }
+  t('export: an unknown persona is an error, not silence', bad);
+  t('export: with no argument it lists every persona', PERSONAS.every(p => run().includes(p.id)));
+}
 t('personality: Ara is still forbidden from flattery', compose('ara').includes('praise you cannot evidence'));
 
 /* ---------- the review prompt is structured against the compliment sandwich ---------- */
