@@ -710,6 +710,22 @@ const caps = () => ({ produced: produced() });
 
 function blockedMessage(missing) {
   const w = explainMissing(missing);
+  // A denied microphone makes `produced` empty, so every metric looks missing.
+  // Blame the microphone for the ones this studio actually computes, and keep
+  // the real cause for the rest. Otherwise a Chrome user who clicked "block"
+  // is told their browser has no speech recognition, and a pitch drill is told
+  // its metric was never implemented.
+  if (!audioOk) {
+    const withMic = asrOk ? MEASURED : new Set([...MEASURED].filter(m => !TRANSCRIPT_METRICS.has(m)));
+    const micBlocked = missing.filter(m => withMic.has(m));
+    const rest = explainMissing(missing.filter(m => !withMic.has(m)));
+    const parts = [];
+    if (micBlocked.length) parts.push(`Needs a microphone — none is available, or permission was denied. It cannot measure ${micBlocked.map(esc).join(', ')}.`);
+    if (rest.transcript.length) parts.push(`Needs speech recognition, which this browser does not provide (Chrome and Edge do). It cannot measure ${rest.transcript.map(esc).join(', ')}.`);
+    if (rest.unmeasured.length) parts.push(`Not available yet — ${rest.unmeasured.map(esc).join(', ')} ${rest.unmeasured.length>1?'are':'is'} not computed by this studio.`);
+    if (rest.camera.length) parts.push(`Needs the camera — this device cannot measure ${rest.camera.map(esc).join(', ')}.`);
+    return parts.join(' ');
+  }
   const parts = [];
   if (w.transcript.length) parts.push(`Needs speech recognition, which this browser does not provide (Chrome and Edge do). It cannot measure ${w.transcript.map(esc).join(', ')}.`);
   if (w.unmeasured.length) parts.push(`Not available yet — ${w.unmeasured.map(esc).join(', ')} ${w.unmeasured.length>1?'are':'is'} not computed by this studio.`);
@@ -753,6 +769,7 @@ function renderDrillList() {
 
 /* ---- the session state machine ---- */
 let run = null;
+let runToken = 0;
 const PHASE_LABEL = { baseline:'Baseline', drill:'The drill', post:'After' };
 
 document.getElementById('v-drills').addEventListener('click', e => {
@@ -776,9 +793,11 @@ function renderResume() {
   if (!r || r.phase === 'idle') {                       // stale, unrunnable, or nothing worth resuming
     state.activeRun = null; save(state); el.innerHTML = ''; return;
   }
-  const done = r.phase === 'baseline' ? 'baseline recorded' : 'baseline recorded and drill done';
+  const done = r.phase === 'baseline'
+    ? 'baseline recorded. Next is the drill'
+    : 'baseline recorded and the drill is done. Next is the after measurement';
   el.innerHTML = `<div class="note ok" role="region" aria-label="Unfinished session" style="margin-bottom:12px">
-    <strong>Unfinished session:</strong> ${esc(r.drill.name)} — ${done}. The take that was running when the page closed was not kept.
+    <strong>Unfinished session:</strong> ${esc(r.drill.name)} — ${done}.
     <button class="btn go" id="resumeBtn" style="margin-left:8px">Resume</button>
     <button class="btn quiet" id="discardBtn">Discard</button></div>`;
   $('#resumeBtn').onclick = () => { startRun(r.drill, r); el.innerHTML = ''; };
@@ -786,6 +805,8 @@ function renderResume() {
 }
 
 function startRun(drill, resumed = null) {
+  stopPhase({ cancel: true });
+  runToken++;
   run = resumed || { drill, phase:'idle', pre:null, post:null };
   if (!resumed) persistRun();
   $('#runCard').hidden = false;
@@ -799,32 +820,41 @@ function startRun(drill, resumed = null) {
 }
 function renderPhaseBar() {
   const order = ['baseline','drill','post'];
+  // While the button is disabled the named phase is in progress. Once it is
+  // enabled again, that same name means the phase finished — show it as done,
+  // not as still happening. A reload used to resume on "now" for a baseline
+  // that had already been stored.
+  const busy = $('#phaseBtn').disabled && run.phase !== 'done';
+  const cur = order.indexOf(run.phase);
   $('#phaseBar').innerHTML = order.map(ph => {
-    const done = order.indexOf(ph) < order.indexOf(run.phase) || run.phase === 'done';
-    const now = run.phase === ph;
+    const idx = order.indexOf(ph);
+    const done = run.phase === 'done' || idx < cur || (idx === cur && !busy);
+    const now = busy && run.phase === ph;
     return `<div class="stat" style="${now?'outline:2px solid var(--rec)':''}">
       <div class="k">${PHASE_LABEL[ph]}</div>
       <div class="n" style="font-size:14px;color:${done?'var(--go)':now?'var(--rec)':'var(--ink3)'}">${done?'done':now?'now':'—'}</div></div>`;
   }).join('');
 }
 
-$('#abortBtn').onclick = () => { stopPhase(); run = null; persistRun(); $('#runCard').hidden = true; renderResume(); };
+$('#abortBtn').onclick = () => { stopPhase({ cancel: true }); runToken++; run = null; persistRun(); $('#runCard').hidden = true; renderResume(); };
 $('#phaseBtn').onclick = async () => {
   if (!run) return;
+  const token = runToken;
   const next = run.phase === 'idle' ? 'baseline' : run.phase === 'baseline' ? 'drill' : 'post';
-  run.phase = next; renderPhaseBar();
-  $('#phaseBtn').disabled = true;
+  run.phase = next;
+  $('#phaseBtn').disabled = true; renderPhaseBar();
   const secs = next === 'drill' ? run.drill.duration_s : BRACKET_S;
   $('#phaseNote').innerHTML = next === 'drill'
     ? `<div class="note ok">Run the drill as written. ${run.drill.intervention_cues?.[0] ? 'If you slip: ' + esc(run.drill.intervention_cues[0].say) : ''}</div>`
     : `<div class="note ok">Speak freely for ${secs} seconds — this is the measurement, not the drill.</div>`;
 
   const telemetry = await measurePhase(secs);
-  if (!run) return;                                   // cancelled mid-phase
+  if (!run || token !== runToken) return;             // cancelled, or a different drill was started
   if (telemetry === null) {                           // void phase — repeat it, do not score it
     run.phase = next === 'baseline' ? 'idle' : next === 'drill' ? 'baseline' : 'drill';
-    renderPhaseBar(); $('#phaseBtn').disabled = false;
+    $('#phaseBtn').disabled = false;
     $('#phaseBtn').textContent = `Retry ${PHASE_LABEL[next].toLowerCase()}`;
+    renderPhaseBar();
     return;
   }
   if (next === 'baseline') run.pre = telemetry;
@@ -833,7 +863,7 @@ $('#phaseBtn').onclick = async () => {
 
   $('#phaseBtn').disabled = false;
   if (next === 'post') { finishRun(); }
-  else { persistRun(); $('#phaseBtn').textContent = nextLabel(); }
+  else { persistRun(); $('#phaseBtn').textContent = nextLabel(); renderPhaseBar(); }
 };
 
 function finishRun() {
@@ -859,20 +889,24 @@ function finishRun() {
 
 /** One measured take. Reuses the same acoustic pipeline as script practice. */
 let phaseState = null;
-function stopPhase() {
+function stopPhase({ cancel = false } = {}) {
   if (!phaseState) return;
+  if (cancel) { phaseState.cancelled = true; phaseState.cancel?.(); }
   clearInterval(phaseState.audio); clearInterval(phaseState.tick);
   phaseState.asr?.stop(); phaseState.ctx?.close(); phaseState.stream?.getTracks().forEach(t=>t.stop());
   $('#recDot').classList.remove('live'); $('#phaseClock').textContent = '';
   phaseState = null;
 }
 async function measurePhase(secs) {
-  const st = { t0: performance.now(), pitch: [], energy: [], transcript: '' };
+  const st = { t0: performance.now(), pitch: [], energy: [], transcript: '', cancelled: false };
   phaseState = st;
   $('#recDot').classList.add('live');
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:false, autoGainControl:false } });
+    if (st.cancelled) { stream.getTracks().forEach(t => t.stop()); return null; }
+    const wasDown = !audioOk;
     st.stream = stream; audioOk = true;
+    if (wasDown) { renderStages(); renderDrillList(); }
     $('#micTag').textContent = 'mic live'; $('#micTag').classList.remove('off');
     const ctx = new (window.AudioContext||window.webkitAudioContext)(); st.ctx = ctx;
     // A suspended context reads zero energy forever, which scores as flawless
@@ -893,22 +927,31 @@ async function measurePhase(secs) {
       r.onresult = ev => { for (let i=ev.resultIndex;i<ev.results.length;i++) st.transcript += ' ' + ev.results[i][0].transcript; };
       r.onerror = () => {}; try { r.start(); st.asr = r; } catch {} }
   } catch {
+    if (st.cancelled) return null;
     // now we know, rather than assumed — tell the list so it stops offering
-    // drills whose benchmark nothing can check
+    // drills whose benchmark nothing can check. Return immediately: waiting
+    // out the clock and storing a duration with every metric null is a
+    // baseline that never happened.
     audioOk = false;
     $('#micTag').textContent = 'no mic'; $('#micTag').classList.add('off');
     renderStages(); renderDrillList();
+    stopPhase();
+    $('#phaseNote').innerHTML = `<div class="note bad">No microphone — permission was denied, or this device has none. This phase was not measured.</div>`;
+    return null;
   }
+  if (st.cancelled) return null;
   await new Promise(resolve => {
+    st.cancel = resolve;
     st.tick = setInterval(() => {
       const left = secs - (performance.now() - st.t0)/1000;
       $('#phaseClock').textContent = left > 0 ? `${Math.ceil(left)}s` : '';
       if (left <= 0) { resolve(); }
     }, 100);
   });
+  if (st.cancelled) return null;
   const dur = (performance.now() - st.t0)/1000;
   const spoken = st.transcript.trim();
-  const dead = st.suspended || (st.energy.length > 20 && st.energy.every(e => e < 0.0005));
+  const dead = st.suspended || !st.stream || (st.energy.length > 20 && st.energy.every(e => e < 0.0005));
   stopPhase();
   if (dead) {
     $('#phaseNote').innerHTML = `<div class="note bad">The audio stream went silent for that phase — the browser suspended it, or nothing reached the microphone. Measuring it would be inventing numbers, so this phase is void. Run it again.</div>`;

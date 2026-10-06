@@ -112,9 +112,12 @@ skipped whole categories. These came out of a second pass.
       got a focus trap early; nothing since has had the same pass.
 - [x] ~~**A reload mid-session lost the baseline.**~~ Fixed. The run is saved after every
       completed phase and offered back on reload ("Unfinished session — Resume / Discard").
-      Only completed phases are kept — a take in flight when the page closed is lost, and the
-      banner says so. Snapshots older than 6 hours, from the future, for an unknown drill, or
-      for a drill the device can no longer measure are refused and cleared, so a stale baseline
+      Only completed phases are kept. A take in flight when the page closed is not stored, so it
+      cannot be resumed — the banner says what was kept and what comes next, and does not claim
+      a take was lost, because that is not something the page can know. Snapshots older than 6
+      hours, from the future, for an unknown drill, for a drill the device can no longer measure,
+      or whose saved baseline contains no finite sensed number (a clock duration with every
+      metric null is not a baseline) are refused and cleared, so a stale or empty baseline
       cannot be paired with today's drill.
 - [ ] **Nothing enforces stage order.** `recommend()` prefers low stages and `stageProgress()`
       reports them, but no drill is ever *blocked*. The documents are explicit that behavioural

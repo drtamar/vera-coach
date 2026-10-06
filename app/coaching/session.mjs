@@ -81,6 +81,18 @@ export function explainMissing(missing = []) {
 export const RUN_MAX_AGE_MS = 6 * 3600 * 1000;   // a baseline from this morning is not today's baseline
 
 /**
+ * A baseline is a measurement, not a timestamp.
+ *
+ * `duration_s` is how long the clock ran. It is finite even when the microphone
+ * never opened and every sensed metric came back null. Treating that as a
+ * baseline would pair today's drill with a take that did not happen.
+ */
+function hasMeasurement(pre) {
+  if (!pre || typeof pre !== 'object' || Array.isArray(pre)) return false;
+  return Object.entries(pre).some(([k, v]) => k !== 'duration_s' && Number.isFinite(v));
+}
+
+/**
  * The part of a run worth keeping across a reload.
  *
  * Only COMPLETED phases are saved. A phase in flight when the page goes away is
@@ -104,7 +116,7 @@ export function restoreRun(snap, drills, { now = Date.now(), runnable = () => tr
   if (!drill) return null;
   if (!['idle', 'baseline', 'drill'].includes(snap.phase)) return null;
   if (!Number.isFinite(snap.at) || now - snap.at > RUN_MAX_AGE_MS || snap.at > now + 60000) return null;
-  if (snap.phase !== 'idle' && !snap.pre) return null;      // a baseline phase with no baseline is corrupt
+  if (snap.phase !== 'idle' && !hasMeasurement(snap.pre)) return null;   // no sensed number, or not an object
   if (!runnable(drill)) return null;
   return { drill, phase: snap.phase, pre: snap.pre ?? null, post: null };
 }
