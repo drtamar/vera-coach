@@ -55,6 +55,7 @@ Ara voice. To use Grok's voice with the same coach:
 ```sh
 node bin/export-persona.mjs ara-unhinged     # paste into Grok's custom instructions
 ```
-After a take, the studio's **Take this take to Grok** card copies a review packet
-(measurements, persona, transcript) for you to paste into Grok. Nothing is sent
-from the page; you carry it.
+After a take, **Review with Ara in Grok** opens grok.com with the packet on `?q=`,
+in your subscription. No API key. A long transcript is cut from the tail so the
+honesty floor still fits; the full packet can be copied and pasted. The page
+cannot read Grok's reply.

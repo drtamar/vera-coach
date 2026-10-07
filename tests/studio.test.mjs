@@ -109,8 +109,12 @@ const drillBlock = (p, name) => p.locator('.drill', { hasText: name });
   const link = await p.getAttribute('#grokOpen', 'href');
   const rel = await p.getAttribute('#grokOpen', 'rel');
   t('grok: it opens Grok in a new tab without leaking the opener', link === 'https://grok.com' && /noopener/.test(rel), `${link} ${rel}`);
-  t('grok: it tells the person nothing leaves the device until they paste',
-    /nothing leaves your device until you paste/i.test(await p.textContent('#grokCard')));
+  const card = await p.textContent('#grokCard');
+  t('grok: the review is your subscription, not an API key',
+    /subscription/i.test(card) && /no API key/i.test(card) && !/api\.x\.ai/i.test(card), card.slice(0, 240));
+  t('coach: Ara unhinged is the default', await p.$eval('#personaSel', s => s.value) === 'ara-unhinged');
+  const badge = await p.textContent('#capTag');
+  t('coach: the badge names Grok, not Claude', /Grok/i.test(badge) && !/Claude/i.test(badge), badge);
   await c.close();
 }
 
