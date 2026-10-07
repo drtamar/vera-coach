@@ -1,14 +1,15 @@
 # Working with Grok Build
 
-**What it is.** Grok Build is xAI's terminal coding agent. As of May 2026 it is
-open to SuperGrok subscribers: plan mode with reviewable steps, parallel
-subagents in git worktrees, headless mode, and ACP support. It runs on *your*
-machine under *your* subscription, which is why it fits where the studio page
-cannot: a published page can never act as your Grok login, but a local agent
-signed in as you can.
+**What it is.** Grok Build is xAI's terminal coding agent (`grok`). The
+[May 2026 launch](https://x.ai/news/grok-build-cli) opened the early beta to
+SuperGrok and X Premium Plus; the [current product page](https://x.ai/build)
+also offers a free try and, as of October 2026, runs on Grok 4.7. It has plan
+mode with reviewable steps, parallel subagents (including git worktrees), and
+headless mode. It runs on *your* machine under *your* account, which is why it
+fits where the studio page cannot: a published page can never act as your Grok
+login, but a local agent signed in as you can.
 
-Verify these details against xAI's own docs before relying on them; they come
-from third-party coverage and the product is in beta.
+The product is still in beta, so re-check [x.ai/build](https://x.ai/build) if a detail here matters.
 
 ## Why a handoff and not a live connection
 The Claude session that maintains this repo runs in a cloud container. It cannot
@@ -54,6 +55,7 @@ Ara voice. To use Grok's voice with the same coach:
 ```sh
 node bin/export-persona.mjs ara-unhinged     # paste into Grok's custom instructions
 ```
-After a take, the studio's **Take this take to Grok** card copies a review packet
-(measurements, persona, transcript) for you to paste into Grok. Nothing is sent
-from the page; you carry it.
+After a take, **Review with Ara in Grok** opens grok.com with the packet on `?q=`,
+in your subscription. No API key. A long transcript is cut from the tail so the
+honesty floor still fits; the full packet can be copied and pasted. The page
+cannot read Grok's reply.

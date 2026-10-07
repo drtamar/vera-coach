@@ -36,19 +36,28 @@ const R = [];
 const t = (n, ok, x = '') => R.push(`  ${ok ? 'PASS' : 'FAIL'}  ${n}${ok ? '' : '  ' + x}`);
 const errs = [];
 
-async function open({ asr, storage } = {}) {
+async function open({ asr, storage, mic } = {}) {
   const c = await b.newContext({ viewport: { width: 1000, height: 900 }, permissions: ['microphone'] });
-  await c.addInitScript(({ asr, storage, KEY }) => {
+  await c.addInitScript(({ asr, storage, KEY, mic }) => {
     if (asr === false) {
       Object.defineProperty(window, 'SpeechRecognition', { value: undefined, configurable: true });
       Object.defineProperty(window, 'webkitSpeechRecognition', { value: undefined, configurable: true });
+    }
+    if (mic === false && navigator.mediaDevices) {
+      // Force a detectable speech engine so a denied microphone cannot be
+      // confused with a browser that has no Web Speech. The page reads these
+      // constructors once, at load, which is before any click.
+      if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
+        window.SpeechRecognition = function () {};
+      }
+      navigator.mediaDevices.getUserMedia = () => Promise.reject(new DOMException('denied', 'NotAllowedError'));
     }
     // seed once per context, so a later reload keeps whatever the page itself wrote
     if (storage && !sessionStorage.getItem('seeded')) {
       localStorage.setItem(KEY, JSON.stringify(storage));
       sessionStorage.setItem('seeded', '1');
     }
-  }, { asr, storage, KEY });
+  }, { asr, storage, KEY, mic });
   const p = await c.newPage();
   p.on('pageerror', e => errs.push('pageerror: ' + e.message));
   p.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errs.push('console: ' + m.text()); });
@@ -100,8 +109,12 @@ const drillBlock = (p, name) => p.locator('.drill', { hasText: name });
   const link = await p.getAttribute('#grokOpen', 'href');
   const rel = await p.getAttribute('#grokOpen', 'rel');
   t('grok: it opens Grok in a new tab without leaking the opener', link === 'https://grok.com' && /noopener/.test(rel), `${link} ${rel}`);
-  t('grok: it tells the person nothing leaves the device until they paste',
-    /nothing leaves your device until you paste/i.test(await p.textContent('#grokCard')));
+  const card = await p.textContent('#grokCard');
+  t('grok: the review is your subscription, not an API key',
+    /subscription/i.test(card) && /no API key/i.test(card) && !/api\.x\.ai/i.test(card), card.slice(0, 240));
+  t('coach: Ara unhinged is the default', await p.$eval('#personaSel', s => s.value) === 'ara-unhinged');
+  const badge = await p.textContent('#capTag');
+  t('coach: the badge names Grok, not Claude', /Grok/i.test(badge) && !/Claude/i.test(badge), badge);
   await c.close();
 }
 
@@ -114,10 +127,14 @@ const drillBlock = (p, name) => p.locator('.drill', { hasText: name });
   let { c, p } = await open({ storage: seeded() });
   let banner = await p.textContent('#resumeBanner');
   t('resume: an unfinished session is offered', /Unfinished session/.test(banner) && /Melodic Staircase/.test(banner), banner);
-  t('resume: it says the in-flight take was not kept', /not kept/.test(banner));
+  t('resume: it says what was kept, and does not invent a lost take',
+    /baseline recorded/.test(banner) && !/not kept/i.test(banner), banner);
   await p.click('#resumeBtn');
   t('resume: the run card reopens on the right drill', /Melodic Staircase/.test(await p.textContent('#runName')));
   t('resume: it continues at the drill, not at the baseline', /Start the drill/.test(await p.textContent('#phaseBtn')), await p.textContent('#phaseBtn'));
+  const baselineStat = await p.locator('#phaseBar .stat').nth(0).textContent();
+  t('resume: the stored baseline is marked done, not still in progress',
+    /done/.test(baselineStat) && !/now/.test(baselineStat), baselineStat);
   t('resume: the banner goes away once resumed', (await p.textContent('#resumeBanner')).trim() === '');
   const kept = await p.evaluate(k => JSON.parse(localStorage.getItem(k)).activeRun, KEY);
   t('resume: the baseline is still stored', kept?.pre?.pitch_semitone_sd === 2.2, JSON.stringify(kept));
@@ -147,6 +164,27 @@ const drillBlock = (p, name) => p.locator('.drill', { hasText: name });
 
   ({ c, p } = await open({ storage: { ...seeded(), activeRun: { garbage: true } } }));
   t('corrupt: junk in storage does not break the page', (await p.textContent('#resumeBanner')).trim() === '');
+  await c.close();
+}
+
+/* ---------- 3b. a denied microphone must not invent a baseline or a cause ---------- */
+{
+  const { c, p } = await open({ mic: false });
+  await p.click('#drillList [data-run="3.1"]');
+  await p.click('#phaseBtn');
+  await p.waitForFunction(() => /microphone/i.test(document.querySelector('#phaseNote')?.textContent || ''), null, { timeout: 4000 });
+  const note = await p.textContent('#phaseNote');
+  t('mic: denial voids the phase immediately, instead of waiting out the clock', /not measured/i.test(note), note);
+  const stored = await p.evaluate(k => JSON.parse(localStorage.getItem(k)).activeRun, KEY);
+  t('mic: denial does not store a baseline', stored?.phase !== 'baseline', JSON.stringify(stored));
+  const stair = await drillBlock(p, 'Melodic Staircase').textContent();
+  t('mic: a metric this studio computes is not described as uncomputed', !/not computed by this studio/i.test(stair), stair.slice(-240));
+  t('mic: that drill says it needs a microphone', /microphone/i.test(stair), stair.slice(-240));
+  const tail = await drillBlock(p, 'No-Tailgating').textContent();
+  t('mic: a transcript drill is blamed on the microphone, not on a missing speech engine',
+    /microphone/i.test(tail) && !/does not provide/i.test(tail), tail.slice(-280));
+  const gaze = await drillBlock(p, 'Monocular Lens').textContent();
+  t('mic: a camera drill is still blamed on the camera', /Needs the camera/.test(gaze) && !/microphone/i.test(gaze), gaze.slice(-240));
   await c.close();
 }
 

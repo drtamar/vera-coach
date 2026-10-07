@@ -213,29 +213,27 @@ npm run studio:build       # flatten for publishing
 
 The product UI, four sections:
 
-- **Your coach** — pick a personality and a voice. VERA is the documented executive coach;
-  Ara is warmer and more conversational; or write your own. Whatever the register, the
-  honesty rules are appended underneath and cannot be edited out — a coach that flatters
-  makes the measurement pointless.
-- **Write** — a chat with your coach that develops a script with you. It front-loads the point,
-  cuts background, and bans hedges from what you'll say. Ask for the script and it hands one
-  back between markers, which the page extracts and saves.
+- **Your coach** — Ara (unhinged) by default, in Grok, on your own subscription. No API key.
+  VERA and a custom register are still in the menu. Whatever the register, the
+  honesty rules are appended underneath and cannot be edited out.
+- **Write** — Send opens Grok with the conversation. The reply comes back in Grok,
+  not in this page, because a page cannot use your Grok login. Paste the script
+  back when Ara hands it over.
 - **Practice** — a teleprompter runs your script at the pace you set, and with a microphone
-  VERA coaches *during* the take: a border that breathes and at most four words low in the
+  the page coaches *during* the take: a border that breathes and at most four words low in the
   frame, never a number. Pace is measured from
   the clock and your word count; with a microphone you also get pitch range, terminal contour
   and filler density from the same `app/sensing/audio.mjs` the engine ships. Then the real
-  `score()` and VERA's post-take feedback: one genuine positive, the telemetry in plain
-  language, exactly one thing to change.
+  `score()`. The words of the review are Ara's, in Grok, opened with the measurements on the link.
 - **Drills** — the curriculum, runnable. A session is a short baseline, the drill, then a
   second short take. The benchmark is checked against the post take and the before/after pair
   goes to the learning model. Graduation needs it held across three consecutive sessions.
 - **Bench** — scoring sliders, the bandit simulation, and the live generation prompt.
 
-Published it needs the `sample` capability for the chat and the coaching. **Everything else
-works without it** — script writing by hand, the prompter, pace telemetry, drills and the
-bench all run with no model access at all, and the page says so rather than offering dead
-buttons. The microphone is likewise a bonus: when the frame does not grant it, the take still
+The coach is Grok on your subscription. The page opens `grok.com` with the prompt;
+it does not call the xAI API and it does not need a key. **Everything else
+works with no model at all** — the script box, the prompter, pace telemetry, drills and the
+bench. The microphone is a bonus: when the frame does not grant it, the take still
 measures pace and says which dimensions it could not read.
 
 The script lives in browser storage only — per viewer, not synced, not visible to anyone

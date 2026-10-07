@@ -1,6 +1,7 @@
 import { chunk, pickVoice, isAvailable } from '../app/voice/speak.mjs';
 import { execFileSync } from 'node:child_process';
-import { PERSONAS, byId, compose, reviewPrompt, FLOOR, DEFAULT_ID } from '../app/coaching/persona.mjs';
+import { PERSONAS, byId, compose, reviewPrompt, FLOOR, DEFAULT_ID, GROK_COACH_ID } from '../app/coaching/persona.mjs';
+import { grokChatUrl, packPrompt, GROK_QUERY_MAX, GROK_ORIGIN } from '../app/coaching/grok-link.mjs';
 
 const pass = [], fail = [];
 const t = (n, c, extra='') => (c ? pass : fail).push(n + (c ? '' : `  ${extra}`));
@@ -78,6 +79,34 @@ t('personality: unhinged Ara cannot override the floor by asking nicely',
   t('export: with no argument it lists every persona', PERSONAS.every(p => run().includes(p.id)));
 }
 t('personality: Ara is still forbidden from flattery', compose('ara').includes('praise you cannot evidence'));
+
+/* ---------- the coach is Grok on a subscription, Ara unhinged, no API ---------- */
+t('coach: the studio default is Ara unhinged, not the registry default',
+  GROK_COACH_ID === 'ara-unhinged' && DEFAULT_ID === 'vera' && GROK_COACH_ID !== DEFAULT_ID);
+{
+  const packet = reviewPrompt({
+    persona: GROK_COACH_ID, telemetry: { wpm: 140, filler_density: 0.02, silence_ratio: null },
+    score: 72, weakest: 'wpm', hedges: 0.01, transcript: 'hello there', cues: ['filler'],
+  });
+  const link = grokChatUrl(packet);
+  t('grok link: a normal take fits and names Ara', !link.trimmed && /off the leash/.test(link.text) && link.text.includes(FLOOR));
+  t('grok link: the url is grok.com ?q=, with no API host and no key',
+    link.url.startsWith('https://grok.com/?q=') && !/api\.x\.ai|XAI_API_KEY|xai-/.test(link.url));
+  t('grok link: an empty prompt does not invent a query', grokChatUrl('').url === GROK_ORIGIN && grokChatUrl('   ').url === GROK_ORIGIN);
+  const full = reviewPrompt({
+    persona: GROK_COACH_ID, telemetry: { wpm: 140 }, score: 10, weakest: 'wpm', hedges: null,
+    transcript: 'word '.repeat(4000), cues: [],
+  });
+  const opened = grokChatUrl(full);
+  t('grok link: the review prompt caps the transcript, so the link is not cut and the floor stays',
+    !opened.trimmed && opened.text.includes('Never invent a number') && opened.text.length <= GROK_QUERY_MAX);
+  const huge = 'Never invent a number. Roast the habit.\n' + ('word '.repeat(2000));
+  const cut = packPrompt(huge);
+  t('grok link: a prompt past the budget is cut from the tail and the floor stays',
+    cut.trimmed && cut.text.length <= GROK_QUERY_MAX && cut.text.startsWith('Never invent a number') && !cut.text.includes('word '.repeat(2000)));
+  t('grok link: the cut still opens on grok.com and does not call the API',
+    grokChatUrl(huge).url.startsWith('https://grok.com/?q=') && !/fetch\(/.test(grokChatUrl(huge).url));
+}
 
 /* ---------- the review prompt is structured against the compliment sandwich ---------- */
 {

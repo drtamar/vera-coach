@@ -1,17 +1,15 @@
 /**
  * Who is coaching you, and how they talk.
  *
- * The model access underneath is the viewer's own subscription — the artifact's
- * `sample` capability, approved once, billed to nobody. A persona does not
- * change the provider; it changes the standing instructions and the voice that
- * reads them. Swapping providers is not something a published page can do: a
- * consumer subscription authenticates a person in that vendor's own app, not a
- * third-party page acting on their behalf.
- *
- * Personas are editable. The ones here are starting points, not a fixed cast.
+ * The coach is Grok, on the viewer's own subscription, in Grok's own app.
+ * This page does not hold an API key and does not call the xAI API. A persona
+ * changes the register, not the provider, and cannot edit the honesty floor.
+ * Ara (unhinged) is the studio default. VERA remains available.
  */
 
 export const DEFAULT_ID = 'vera';
+/** The studio coach. Grok, on the viewer's subscription, in this register. */
+export const GROK_COACH_ID = 'ara-unhinged';
 
 /**
  * `voice` is a hint, not a guarantee: the browser offers whatever voices the

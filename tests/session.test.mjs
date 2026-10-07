@@ -169,6 +169,17 @@ const byId = id => registry.drills.find(d => d.id === id);
   t('restore: a timestamp from the future is refused', restoreRun({ ...snap, at: now + 3_600_000 }, registry.drills, { now }) === null);
   t('restore: an unknown drill is refused', restoreRun({ ...snap, drillId: 'nope' }, registry.drills, { now }) === null);
   t('restore: a baseline phase with no baseline is corrupt', restoreRun({ ...snap, pre: null }, registry.drills, { now }) === null);
+  t('restore: a baseline of only nulls is not a measurement',
+    restoreRun({ ...snap, pre: { wpm: null, silence_ratio: null, duration_s: null } }, registry.drills, { now }) === null);
+  t('restore: a timer with no sensed number is not a baseline — duration alone must not resume',
+    restoreRun({ ...snap, pre: { wpm: null, filler_density: null, duration_s: 20 } }, registry.drills, { now }) === null);
+  t('restore: a non-object baseline is refused',
+    [ '150', 150, [], true ].every(pre => restoreRun({ ...snap, pre }, registry.drills, { now }) === null));
+  t('restore: one finite sensed number is enough to keep the baseline',
+    restoreRun({ ...snap, pre: { wpm: null, silence_ratio: 0 } }, registry.drills, { now })?.pre.silence_ratio === 0);
+  t('restore: a finished drill phase comes back without inventing the after-take',
+    restoreRun({ ...snap, phase: 'drill' }, registry.drills, { now })?.phase === 'drill'
+    && restoreRun({ ...snap, phase: 'drill' }, registry.drills, { now })?.post === null);
   t('restore: a phase that cannot be resumed is refused', restoreRun({ ...snap, phase: 'post' }, registry.drills, { now }) === null);
   t('restore: junk input is refused rather than thrown on', [null, undefined, 'x', 42, {}].every(x => restoreRun(x, registry.drills, { now }) === null));
   t('restore: a drill this device can no longer measure is refused',

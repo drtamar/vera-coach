@@ -137,7 +137,7 @@ pre{font-family:var(--mono);font-size:11.5px;background:var(--sunk);border-radiu
 <div class="top">
   <span class="dot" id="recDot"></span>
   <h1>VERA Studio</h1>
-  <span class="tag off" id="capTag">checking Claude…</span>
+  <span class="tag" id="capTag">Grok · your subscription</span>
   <span class="tag off" id="micTag">mic unknown</span>
 </div>
 <nav role="tablist">
@@ -163,7 +163,8 @@ import { CueGovernor, RollingTelemetry, DEFAULTS as CUE_CFG } from '../app/coach
 import { runnability, recordSession, recommend, stageProgress, BRACKET_S,
          TRANSCRIPT_METRICS, explainMissing, snapshotRun, restoreRun } from '../app/coaching/session.mjs';
 import { speak, stop as stopSpeech, voices, pickVoice, isAvailable as ttsAvailable } from '../app/voice/speak.mjs';
-import { PERSONAS, byId as personaById, compose, reviewPrompt, DEFAULT_ID } from '../app/coaching/persona.mjs';
+import { PERSONAS, byId as personaById, compose, reviewPrompt, GROK_COACH_ID } from '../app/coaching/persona.mjs';
+import { grokChatUrl } from '../app/coaching/grok-link.mjs';
 import { meetsGraduation, REQUIRED_CONSECUTIVE } from '../app/scoring/score.mjs';
 
 const registry = await (await fetch('../registry/drills.json')).json();
@@ -176,7 +177,7 @@ const KEY = 'vera.studio.v1';
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
 const save = s => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {} };
 let state = Object.assign({ script:'', turns:[], takes:[], drills:{}, efficacy:{},
-                            persona: DEFAULT_ID, customPersona:'', voiceName:'', rate:1 }, load());
+                            persona: GROK_COACH_ID, customPersona:'', voiceName:'', rate:1 }, load());
 const efficacy = new EfficacyModel(state.efficacy);
 const saveAll = () => { state.efficacy = efficacy.toJSON(); save(state); };
 
@@ -250,47 +251,21 @@ How you behave here:
 /** Persona first, then the task. The honesty floor rides along inside compose(). */
 const rules = () => compose(state.persona, { custom: state.customPersona }) + '\n\n' + SCRIPT_TASK;
 
-/* ---------- capability, resolved late and possibly absent ---------- */
-let sample = null, sampleDead = false;
-/* Detection runs at the END of this module, not here. When window.claude is
-   absent entirely, `claude.use` throws a ReferenceError BEFORE the await ever
-   suspends, so the catch and everything after it run synchronously — before any
-   of the DOM below exists. Resolving early left the Send button enabled and
-   silent. */
-async function detectCapability() {
-  try { sample = await claude.use('sample'); } catch { sample = null; }
+/* ---------- the coach is Grok, on the viewer's subscription ---------- */
+/* A page cannot be a Grok login, and this product does not call the xAI API.
+   Send and the post-take review open grok.com with the prompt in ?q=, which
+   runs in their own session. Replies stay in Grok; this page cannot read them. */
+function detectCapability() {
   const tag = $('#capTag');
-  if (sample) { tag.textContent = 'Claude connected'; tag.classList.remove('off'); }
-  else { markChatUnavailable('Claude unavailable'); }
+  tag.textContent = 'Grok · your subscription';
+  tag.classList.remove('off');
 }
-function markChatUnavailable(reason) {
-  sampleDead = true;
-  $('#capTag').textContent = reason || 'Claude unavailable';
-  $('#capTag').classList.add('off');
-  const s = $('#sendBtn'); if (s) { s.disabled = true; }
-  const c = $('#chat');
-  if (c && !c.querySelector('.deadnote')) {
-    c.append(frag(`<div class="msg sys deadnote">Chat needs Claude, which this view cannot reach. Everything else still works — you can write your script by hand below.</div>`));
-  }
-}
-const ERR_COPY = {
-  not_granted:'You declined Claude for this page, so chat is off. The rest still works.',
-  sampling_disabled:'Claude is not available on this account.',
-  not_declared:'This page no longer declares Claude access.',
-  rate_limited:'Too many requests just now. Give it a minute and try again.',
-  session_expired:'Your session expired — sign in again.',
-  refused:'Claude declined that one. Try rephrasing.',
-  empty_completion:'Nothing came back. Ask for less at a time.',
-  prompt_too_large:'That conversation got too long. Start a fresh one.',
-  cancelled:'',
-};
-const HIDE_CODES = new Set(['not_granted','sampling_disabled','not_declared','capability_disabled','capability_removed']);
 
 /* ================= WRITE ================= */
 $('#v-write').append(frag(`
 <div class="card">
   <h2>Your coach</h2>
-  <p class="sub">Who is in your ear, and whether they read aloud. The model underneath is your own Claude subscription through this page — approved once, no key, nothing billed separately. Personality changes the register, never the honesty.</p>
+  <p class="sub">Ara (unhinged) is the coach, in Grok, on your own subscription. No API key — this page never calls the xAI API. Personality changes the register, never the honesty. The voice here is your browser's, the closest it has; Grok's own voice is in the Grok app.</p>
   <div class="row"><label for="personaSel">personality</label>
     <select id="personaSel" style="font-family:var(--body);font-size:13.5px;padding:6px;background:var(--sunk);color:var(--ink);border:1px solid var(--line);border-radius:6px"></select>
     <span></span></div>
@@ -307,12 +282,11 @@ $('#v-write').append(frag(`
 </div>
 <div class="card">
   <h2>Write the script</h2>
-  <p class="sub">Talk it through with VERA. Tell it what the video is for and who it is for; it will push back, cut, and hand you something sayable. Ask for "the script" when you want the draft.</p>
+  <p class="sub">Talk it through with Ara in Grok. Tell them what the video is for and who it is for. Send opens Grok with this conversation — the reply comes back there, not here, because a page cannot use your Grok login. Paste the script below when you have it.</p>
   <div class="chat" id="chat"></div>
   <div class="compose">
-    <textarea id="box" rows="2" placeholder="What's the video about?  (Enter to send, Shift+Enter for a new line)"></textarea>
-    <button class="btn go" id="sendBtn">Send</button>
-    <button class="btn quiet" id="stopBtn" hidden>Stop</button>
+    <textarea id="box" rows="2" placeholder="What's the video about?  (Enter sends it to Grok)"></textarea>
+    <button class="btn go" id="sendBtn">Send to Grok</button>
   </div>
   <div class="bar" style="margin-top:10px">
     <button class="btn" id="askScript">Ask for the script</button>
@@ -322,7 +296,7 @@ $('#v-write').append(frag(`
 <div class="card">
   <h2>Your script</h2>
   <p class="sub">Edit freely. Saved in this browser only — <strong>not</strong> synced and not visible to anyone else. Copy it out if it matters.</p>
-  <textarea class="script" id="script" placeholder="Paste or write your script here, or let VERA draft one above."></textarea>
+  <textarea class="script" id="script" placeholder="Paste the script Ara handed you in Grok, or write it here."></textarea>
   <div class="bar" style="margin-top:10px">
     <button class="btn" id="copyScript">Copy</button>
     <button class="btn quiet" id="clearScript">Clear</button>
@@ -346,43 +320,29 @@ function trimTurns() { if (state.turns.length > KEEP_TURNS) state.turns = state.
 // trim on load too — and write it back, or storage keeps growing regardless
 if (state.turns.length > KEEP_TURNS) { trimTurns(); save(state); }
 state.turns.forEach(t => bubble(t.role, t.content));
-if (!state.turns.length) chat.append(frag(`<div class="msg sys">Tell VERA what the video is for.</div>`));
+if (!state.turns.length) chat.append(frag(`<div class="msg sys">Tell Ara what the video is for. Send opens Grok on your subscription.</div>`));
 
-let ctl = null;
 async function send(text) {
-  if (!sample || sampleDead || !text.trim()) return;
+  if (!text.trim()) return;
   bubble('user', text);
   state.turns.push({ role:'user', content:text }); trimTurns(); save(state);
   box.value = '';
-  const out = bubble('assistant', 'Thinking…');
-  $('#sendBtn').disabled = true; $('#stopBtn').hidden = false;
-  ctl = new AbortController();
-  // keep the instructions turn, drop the oldest exchanges as it grows
-  const recent = state.turns.slice(-16);
-  try {
-    const { text: reply } = await sample(
-      [{ role:'user', content: rules() }, ...recent],
-      { cache:false, signal: ctl.signal, onText: ({ text }) => { out.textContent = text; chat.scrollTop = chat.scrollHeight; } }
-    );
-    state.turns.push({ role:'assistant', content: reply }); trimTurns(); save(state);
-    pullScript(reply);
-  } catch (e) {
-    if (e.code === 'cancelled') { out.textContent = e.text || '(stopped)'; }
-    else if (HIDE_CODES.has(e.code)) { out.remove(); markChatUnavailable(ERR_COPY[e.code]); }
-    else { out.textContent = e.text || ''; chat.append(frag(`<div class="msg sys">${esc(ERR_COPY[e.code] || 'Something went wrong. Try again.')}</div>`)); }
-  } finally {
-    $('#sendBtn').disabled = sampleDead; $('#stopBtn').hidden = true; ctl = null;
+  const recent = state.turns.slice(-16).map(t => `${t.role === 'user' ? 'Them' : 'Ara'}: ${t.content}`).join('\n\n');
+  const prompt = `${rules()}\n\nThe conversation so far:\n${recent}\n\nReply in this register. If they asked for the script, output only the script between <<<SCRIPT and SCRIPT>>>.`;
+  const link = grokChatUrl(prompt);
+  const opened = window.open(link.url, '_blank', 'noopener,noreferrer');
+  let note = opened
+    ? 'Opened in Grok, on your subscription. No API key. Paste the script below when Ara hands it back — this page cannot read Grok\'s reply.'
+    : 'The browser blocked the new tab. Allow pop-ups, or use the Grok button after a take.';
+  if (link.trimmed) {
+    const ok = await copyText(prompt);
+    note = (ok ? 'Full message copied — paste it into Grok if the end was cut. ' : 'Could not copy the full message. ')
+      + 'Opened the part that fits a link. No API was called.';
+    if (!opened) note += ' The tab was blocked.';
   }
-}
-function pullScript(reply) {
-  const m = reply.match(/<<<SCRIPT([\s\S]*?)SCRIPT>>>/);
-  if (!m) return;
-  $('#script').value = m[1].trim();
-  state.script = m[1].trim(); save(state); meta();
-  chat.append(frag(`<div class="msg sys">Script saved below — open Practice when you're ready.</div>`));
+  chat.append(frag(`<div class="msg sys">${esc(note)}</div>`));
 }
 $('#sendBtn').onclick = () => send(box.value);
-$('#stopBtn').onclick = () => ctl?.abort();
 box.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(box.value); }
 });
@@ -434,16 +394,16 @@ $('#v-practice').append(frag(`
   <button class="btn quiet" id="clearTakes" style="margin-top:8px">Clear history</button>
 </div>
 <div class="card" id="feedbackCard" hidden>
-  <h2>What VERA saw</h2>
-  <p class="sub">One genuine positive, then the telemetry, then exactly one thing to change. Three corrections produce zero corrections.</p>
+  <h2>What was measured</h2>
+  <p class="sub">The numbers stay on this page. Ara writes the review in Grok, on your subscription — this page does not call an API.</p>
   <div id="feedback" style="font-size:14px;white-space:pre-wrap"></div>
 </div>
 <div class="card" id="grokCard" hidden>
-  <h2>Take this take to Grok</h2>
-  <p class="sub">Uses your own Grok subscription in its own app — no key, nothing sent from this page. This copies your measurements, the persona and your transcript to the clipboard; nothing leaves your device until you paste it.</p>
+  <h2>Ara reviews this in Grok</h2>
+  <p class="sub">Your Grok subscription, in Grok's own app. No API key. This page does not call an API. Opening the link sends this take to Grok in your browser — the measurements, Ara (unhinged), and what you said.</p>
   <div class="bar">
-    <button class="btn" id="grokCopy">Copy review packet</button>
-    <a class="btn quiet" id="grokOpen" href="https://grok.com" target="_blank" rel="noopener noreferrer">Open Grok</a>
+    <a class="btn go" id="grokOpen" href="https://grok.com" target="_blank" rel="noopener noreferrer">Review with Ara in Grok</a>
+    <button class="btn" id="grokCopy">Copy full packet</button>
   </div>
   <div id="grokNote" role="status" aria-live="polite" style="margin-top:8px;font-size:13px"></div>
 </div>`));
@@ -633,29 +593,22 @@ async function copyText(text) {
 $('#grokCopy').onclick = async () => {
   const ok = await copyText(buildPacket());
   $('#grokNote').textContent = ok
-    ? 'Copied. Open Grok and paste it as your first message. In voice mode, put the persona text in Grok\'s custom instructions instead.'
-    : 'Could not reach the clipboard here. Select the text yourself from the review above, or try again after clicking the page.';
+    ? 'Copied. In Grok, paste it if the link was shortened. Voice mode: the same persona belongs in Grok\'s custom instructions. No API key was used.'
+    : 'Could not reach the clipboard. The link still opens Grok with this take.';
 };
 
-async function coachOn(t, r, w, hedges, spoken, cues = []) {
+function coachOn(t, r, w, hedges, spoken, cues = []) {
   lastReview = { t, r, w, hedges, spoken, cues };
-  $('#grokCard').hidden = false; $('#grokNote').textContent = '';
-  if (!sample || sampleDead) return;
-  const card = $('#feedbackCard'), out = $('#feedback');
-  card.hidden = false; out.textContent = 'Watching that back…';
-  const prompt = reviewPrompt({
-    persona: state.persona, custom: state.customPersona,
-    telemetry: t, score: r.score, weakest: w?.metric, hedges,
-    transcript: spoken, cues: cues.map(c => c.id),
-  });
-  try {
-    const { text } = await sample(prompt, { cache:false, onText: ({ text }) => { out.textContent = text; } });
-    out.textContent = text;
-    wireSpeakers();
-  } catch (e) {
-    if (HIDE_CODES.has(e.code)) { card.hidden = true; markChatUnavailable(ERR_COPY[e.code]); }
-    else out.textContent = e.text || (ERR_COPY[e.code] || 'Could not get a review just now.');
-  }
+  const prompt = buildPacket();
+  const link = grokChatUrl(prompt);
+  const a = $('#grokOpen');
+  a.href = link.url;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  $('#grokCard').hidden = false;
+  $('#grokNote').textContent = link.trimmed
+    ? 'The link holds the start of the review, including the honesty rules. Copy the full packet and paste it into Grok if the transcript was cut. Your subscription. No API.'
+    : 'Opens Grok with this take, on your subscription. No API key. This page does not send it anywhere else.';
 }
 
 /* ================= DRILLS ================= */
@@ -710,6 +663,22 @@ const caps = () => ({ produced: produced() });
 
 function blockedMessage(missing) {
   const w = explainMissing(missing);
+  // A denied microphone makes `produced` empty, so every metric looks missing.
+  // Blame the microphone for the ones this studio actually computes, and keep
+  // the real cause for the rest. Otherwise a Chrome user who clicked "block"
+  // is told their browser has no speech recognition, and a pitch drill is told
+  // its metric was never implemented.
+  if (!audioOk) {
+    const withMic = asrOk ? MEASURED : new Set([...MEASURED].filter(m => !TRANSCRIPT_METRICS.has(m)));
+    const micBlocked = missing.filter(m => withMic.has(m));
+    const rest = explainMissing(missing.filter(m => !withMic.has(m)));
+    const parts = [];
+    if (micBlocked.length) parts.push(`Needs a microphone — none is available, or permission was denied. It cannot measure ${micBlocked.map(esc).join(', ')}.`);
+    if (rest.transcript.length) parts.push(`Needs speech recognition, which this browser does not provide (Chrome and Edge do). It cannot measure ${rest.transcript.map(esc).join(', ')}.`);
+    if (rest.unmeasured.length) parts.push(`Not available yet — ${rest.unmeasured.map(esc).join(', ')} ${rest.unmeasured.length>1?'are':'is'} not computed by this studio.`);
+    if (rest.camera.length) parts.push(`Needs the camera — this device cannot measure ${rest.camera.map(esc).join(', ')}.`);
+    return parts.join(' ');
+  }
   const parts = [];
   if (w.transcript.length) parts.push(`Needs speech recognition, which this browser does not provide (Chrome and Edge do). It cannot measure ${w.transcript.map(esc).join(', ')}.`);
   if (w.unmeasured.length) parts.push(`Not available yet — ${w.unmeasured.map(esc).join(', ')} ${w.unmeasured.length>1?'are':'is'} not computed by this studio.`);
@@ -753,6 +722,7 @@ function renderDrillList() {
 
 /* ---- the session state machine ---- */
 let run = null;
+let runToken = 0;
 const PHASE_LABEL = { baseline:'Baseline', drill:'The drill', post:'After' };
 
 document.getElementById('v-drills').addEventListener('click', e => {
@@ -776,9 +746,11 @@ function renderResume() {
   if (!r || r.phase === 'idle') {                       // stale, unrunnable, or nothing worth resuming
     state.activeRun = null; save(state); el.innerHTML = ''; return;
   }
-  const done = r.phase === 'baseline' ? 'baseline recorded' : 'baseline recorded and drill done';
+  const done = r.phase === 'baseline'
+    ? 'baseline recorded. Next is the drill'
+    : 'baseline recorded and the drill is done. Next is the after measurement';
   el.innerHTML = `<div class="note ok" role="region" aria-label="Unfinished session" style="margin-bottom:12px">
-    <strong>Unfinished session:</strong> ${esc(r.drill.name)} — ${done}. The take that was running when the page closed was not kept.
+    <strong>Unfinished session:</strong> ${esc(r.drill.name)} — ${done}.
     <button class="btn go" id="resumeBtn" style="margin-left:8px">Resume</button>
     <button class="btn quiet" id="discardBtn">Discard</button></div>`;
   $('#resumeBtn').onclick = () => { startRun(r.drill, r); el.innerHTML = ''; };
@@ -786,6 +758,8 @@ function renderResume() {
 }
 
 function startRun(drill, resumed = null) {
+  stopPhase({ cancel: true });
+  runToken++;
   run = resumed || { drill, phase:'idle', pre:null, post:null };
   if (!resumed) persistRun();
   $('#runCard').hidden = false;
@@ -799,32 +773,41 @@ function startRun(drill, resumed = null) {
 }
 function renderPhaseBar() {
   const order = ['baseline','drill','post'];
+  // While the button is disabled the named phase is in progress. Once it is
+  // enabled again, that same name means the phase finished — show it as done,
+  // not as still happening. A reload used to resume on "now" for a baseline
+  // that had already been stored.
+  const busy = $('#phaseBtn').disabled && run.phase !== 'done';
+  const cur = order.indexOf(run.phase);
   $('#phaseBar').innerHTML = order.map(ph => {
-    const done = order.indexOf(ph) < order.indexOf(run.phase) || run.phase === 'done';
-    const now = run.phase === ph;
+    const idx = order.indexOf(ph);
+    const done = run.phase === 'done' || idx < cur || (idx === cur && !busy);
+    const now = busy && run.phase === ph;
     return `<div class="stat" style="${now?'outline:2px solid var(--rec)':''}">
       <div class="k">${PHASE_LABEL[ph]}</div>
       <div class="n" style="font-size:14px;color:${done?'var(--go)':now?'var(--rec)':'var(--ink3)'}">${done?'done':now?'now':'—'}</div></div>`;
   }).join('');
 }
 
-$('#abortBtn').onclick = () => { stopPhase(); run = null; persistRun(); $('#runCard').hidden = true; renderResume(); };
+$('#abortBtn').onclick = () => { stopPhase({ cancel: true }); runToken++; run = null; persistRun(); $('#runCard').hidden = true; renderResume(); };
 $('#phaseBtn').onclick = async () => {
   if (!run) return;
+  const token = runToken;
   const next = run.phase === 'idle' ? 'baseline' : run.phase === 'baseline' ? 'drill' : 'post';
-  run.phase = next; renderPhaseBar();
-  $('#phaseBtn').disabled = true;
+  run.phase = next;
+  $('#phaseBtn').disabled = true; renderPhaseBar();
   const secs = next === 'drill' ? run.drill.duration_s : BRACKET_S;
   $('#phaseNote').innerHTML = next === 'drill'
     ? `<div class="note ok">Run the drill as written. ${run.drill.intervention_cues?.[0] ? 'If you slip: ' + esc(run.drill.intervention_cues[0].say) : ''}</div>`
     : `<div class="note ok">Speak freely for ${secs} seconds — this is the measurement, not the drill.</div>`;
 
   const telemetry = await measurePhase(secs);
-  if (!run) return;                                   // cancelled mid-phase
+  if (!run || token !== runToken) return;             // cancelled, or a different drill was started
   if (telemetry === null) {                           // void phase — repeat it, do not score it
     run.phase = next === 'baseline' ? 'idle' : next === 'drill' ? 'baseline' : 'drill';
-    renderPhaseBar(); $('#phaseBtn').disabled = false;
+    $('#phaseBtn').disabled = false;
     $('#phaseBtn').textContent = `Retry ${PHASE_LABEL[next].toLowerCase()}`;
+    renderPhaseBar();
     return;
   }
   if (next === 'baseline') run.pre = telemetry;
@@ -833,7 +816,7 @@ $('#phaseBtn').onclick = async () => {
 
   $('#phaseBtn').disabled = false;
   if (next === 'post') { finishRun(); }
-  else { persistRun(); $('#phaseBtn').textContent = nextLabel(); }
+  else { persistRun(); $('#phaseBtn').textContent = nextLabel(); renderPhaseBar(); }
 };
 
 function finishRun() {
@@ -859,20 +842,24 @@ function finishRun() {
 
 /** One measured take. Reuses the same acoustic pipeline as script practice. */
 let phaseState = null;
-function stopPhase() {
+function stopPhase({ cancel = false } = {}) {
   if (!phaseState) return;
+  if (cancel) { phaseState.cancelled = true; phaseState.cancel?.(); }
   clearInterval(phaseState.audio); clearInterval(phaseState.tick);
   phaseState.asr?.stop(); phaseState.ctx?.close(); phaseState.stream?.getTracks().forEach(t=>t.stop());
   $('#recDot').classList.remove('live'); $('#phaseClock').textContent = '';
   phaseState = null;
 }
 async function measurePhase(secs) {
-  const st = { t0: performance.now(), pitch: [], energy: [], transcript: '' };
+  const st = { t0: performance.now(), pitch: [], energy: [], transcript: '', cancelled: false };
   phaseState = st;
   $('#recDot').classList.add('live');
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:false, autoGainControl:false } });
+    if (st.cancelled) { stream.getTracks().forEach(t => t.stop()); return null; }
+    const wasDown = !audioOk;
     st.stream = stream; audioOk = true;
+    if (wasDown) { renderStages(); renderDrillList(); }
     $('#micTag').textContent = 'mic live'; $('#micTag').classList.remove('off');
     const ctx = new (window.AudioContext||window.webkitAudioContext)(); st.ctx = ctx;
     // A suspended context reads zero energy forever, which scores as flawless
@@ -893,22 +880,31 @@ async function measurePhase(secs) {
       r.onresult = ev => { for (let i=ev.resultIndex;i<ev.results.length;i++) st.transcript += ' ' + ev.results[i][0].transcript; };
       r.onerror = () => {}; try { r.start(); st.asr = r; } catch {} }
   } catch {
+    if (st.cancelled) return null;
     // now we know, rather than assumed — tell the list so it stops offering
-    // drills whose benchmark nothing can check
+    // drills whose benchmark nothing can check. Return immediately: waiting
+    // out the clock and storing a duration with every metric null is a
+    // baseline that never happened.
     audioOk = false;
     $('#micTag').textContent = 'no mic'; $('#micTag').classList.add('off');
     renderStages(); renderDrillList();
+    stopPhase();
+    $('#phaseNote').innerHTML = `<div class="note bad">No microphone — permission was denied, or this device has none. This phase was not measured.</div>`;
+    return null;
   }
+  if (st.cancelled) return null;
   await new Promise(resolve => {
+    st.cancel = resolve;
     st.tick = setInterval(() => {
       const left = secs - (performance.now() - st.t0)/1000;
       $('#phaseClock').textContent = left > 0 ? `${Math.ceil(left)}s` : '';
       if (left <= 0) { resolve(); }
     }, 100);
   });
+  if (st.cancelled) return null;
   const dur = (performance.now() - st.t0)/1000;
   const spoken = st.transcript.trim();
-  const dead = st.suspended || (st.energy.length > 20 && st.energy.every(e => e < 0.0005));
+  const dead = st.suspended || !st.stream || (st.energy.length > 20 && st.energy.every(e => e < 0.0005));
   stopPhase();
   if (dead) {
     $('#phaseNote').innerHTML = `<div class="note bad">The audio stream went silent for that phase — the browser suspended it, or nothing reached the microphone. Measuring it would be inventing numbers, so this phase is void. Run it again.</div>`;

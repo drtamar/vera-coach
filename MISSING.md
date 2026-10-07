@@ -86,18 +86,14 @@ skipped whole categories. These came out of a second pass.
       key, works when model access is declined. Buttons appear only when a voice actually
       exists, because `speechSynthesis` can be present with an empty voice list and every
       button would be dead.
-- [ ] **Grok cannot be reached from a published page — and a subscription cannot fix that.** A consumer subscription authenticates
-      a person in that vendor's own app; there is no mechanism for a third-party page to act
-      as it. The only programmatic route is the xAI API with a key, which is a different
-      product and was explicitly ruled out. What *is* portable — the personality and the
-      voice — is built, including **Ara (unhinged)**, an original chaotic-comedy persona that
-      still inherits the honesty floor. The browser's text-to-speech cannot produce Grok's own
-      Ara voice; it picks the closest installed system voice. If the provider itself matters,
-      it needs a backend you host holding an xAI API key.
-      **Subscription-compatible routes, built:** the studio's *Take this take to Grok* card copies
-      a review packet to paste into Grok in its own app; `npm run persona:export` prints any
-      persona for Grok's custom instructions; and `docs/GROK_HANDOFF.md` sets up Grok Build, xAI's
-      terminal agent for SuperGrok subscribers, to work on this repo alongside Claude.
+- [ ] **Grok cannot run inside a published page — a subscription does not turn the page into Grok.** A consumer subscription authenticates
+      a person in Grok's own app. There is no mechanism for this page to act as that login, and the
+      xAI API (a key, a different product) is not used. The coach is still Grok: **Ara (unhinged)** is
+      the studio default, and Send / **Review with Ara in Grok** open `grok.com/?q=` with the persona,
+      the honesty floor, and the take, on the viewer's subscription. A prompt that would not fit a
+      link is cut from the tail; the floor stays. The page cannot read Grok's reply — paste the script
+      back. The browser's speech engine still cannot produce Grok's own Ara voice.
+      `npm run persona:export` prints any persona for Grok's custom instructions.
 - [x] ~~**The transcript path is Chromium-only.**~~ Detected and explained. Web Speech runs in
       Chrome and Edge only; elsewhere `wpm`, `filler_density` and `hedge_density` are never
       produced. The studio now checks up front, says so on the Drills tab, and each blocked
@@ -112,9 +108,12 @@ skipped whole categories. These came out of a second pass.
       got a focus trap early; nothing since has had the same pass.
 - [x] ~~**A reload mid-session lost the baseline.**~~ Fixed. The run is saved after every
       completed phase and offered back on reload ("Unfinished session — Resume / Discard").
-      Only completed phases are kept — a take in flight when the page closed is lost, and the
-      banner says so. Snapshots older than 6 hours, from the future, for an unknown drill, or
-      for a drill the device can no longer measure are refused and cleared, so a stale baseline
+      Only completed phases are kept. A take in flight when the page closed is not stored, so it
+      cannot be resumed — the banner says what was kept and what comes next, and does not claim
+      a take was lost, because that is not something the page can know. Snapshots older than 6
+      hours, from the future, for an unknown drill, for a drill the device can no longer measure,
+      or whose saved baseline contains no finite sensed number (a clock duration with every
+      metric null is not a baseline) are refused and cleared, so a stale or empty baseline
       cannot be paired with today's drill.
 - [ ] **Nothing enforces stage order.** `recommend()` prefers low stages and `stageProgress()`
       reports them, but no drill is ever *blocked*. The documents are explicit that behavioural
